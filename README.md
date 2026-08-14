@@ -1,6 +1,6 @@
 # celld-operator.io
 
-The static website for [celld-operator](https://github.com/ezgamehost/celld-operator) —
+The static website for [celld-operator](https://github.com/ezgamehost/celld-operator):
 landing page and documentation, served at https://celld-operator.io.
 
 No framework, no build step required to serve: every page is plain HTML with one shared
@@ -13,7 +13,7 @@ bucket). The `CNAME` file is for GitHub Pages custom-domain setup.
 | Path | What it is |
 | --- | --- |
 | `index.html` | Landing page (hand-edited) |
-| `docs/**/index.html` | Documentation pages — **generated**, do not edit directly |
+| `docs/**/index.html` | Documentation pages (generated; edit the fragments instead) |
 | `build/content/*.html` | The source fragments for the docs pages |
 | `build/build.py` | Assembles docs pages, `sitemap.xml`, and `404.html` from the fragments |
 | `assets/style.css` | The single shared stylesheet (hand-edited) |

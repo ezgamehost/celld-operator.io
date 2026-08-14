@@ -3,28 +3,28 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Operator Configuration Reference — celld-operator</title>
+<title>Operator configuration reference · celld-operator</title>
 <meta name="description" content="Every celld-operator flag and Helm value: ingress modes, gateway wiring, poll intervals, Prometheus URL, and graceful degradation when integrations are absent.">
 <link rel="canonical" href="https://celld-operator.io/docs/operator-configuration/">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/assets/style.css">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="celld-operator">
-<meta property="og:title" content="Operator Configuration Reference">
+<meta property="og:title" content="Operator configuration reference">
 <meta property="og:description" content="Every celld-operator flag and Helm value: ingress modes, gateway wiring, poll intervals, Prometheus URL, and graceful degradation when integrations are absent.">
 <meta property="og:url" content="https://celld-operator.io/docs/operator-configuration/">
 <meta property="og:image" content="https://celld-operator.io/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Operator Configuration Reference">
+<meta name="twitter:title" content="Operator configuration reference">
 <meta name="twitter:description" content="Every celld-operator flag and Helm value: ingress modes, gateway wiring, poll intervals, Prometheus URL, and graceful degradation when integrations are absent.">
 <meta name="twitter:image" content="https://celld-operator.io/assets/og.png">
 <script type="application/ld+json">
 {
  "@context": "https://schema.org",
  "@type": "TechArticle",
- "headline": "Operator Configuration Reference",
+ "headline": "Operator configuration reference",
  "description": "Every celld-operator flag and Helm value: ingress modes, gateway wiring, poll intervals, Prometheus URL, and graceful degradation when integrations are absent.",
  "url": "https://celld-operator.io/docs/operator-configuration/",
  "isPartOf": {
@@ -139,9 +139,9 @@ absent. Flags configure the operator once; per-app behavior lives in the
 <tr><td><code>--ingress-mode</code></td><td><code>operator.ingressMode</code></td><td><code>httproute</code></td><td>How hostnames are routed: <code>httproute</code> (Gateway API), <code>virtualservice</code> (classic Istio), <code>ingress</code> (<code>networking.k8s.io/v1</code>), or <code>none</code>. See <a href="/docs/networking/#modes">ingress modes</a>.</td></tr>
 <tr><td><code>--gateway-name</code></td><td><code>operator.gatewayName</code></td><td><code>edge</code></td><td>Shared Gateway that HTTPRoutes attach to (<code>httproute</code> mode).</td></tr>
 <tr><td><code>--gateway-namespace</code></td><td><code>operator.gatewayNamespace</code></td><td><code>infra</code></td><td>Namespace of that Gateway.</td></tr>
-<tr><td><code>--istio-gateways</code></td><td><code>operator.istioGateways</code></td><td>—</td><td>Pre-existing <code>networking.istio.io</code> Gateways (<code>namespace/name</code>, comma-separated) that VirtualServices bind to in <code>virtualservice</code> mode.</td></tr>
+<tr><td><code>--istio-gateways</code></td><td><code>operator.istioGateways</code></td><td>unset</td><td>Pre-existing <code>networking.istio.io</code> Gateways (<code>namespace/name</code>, comma-separated) that VirtualServices bind to in <code>virtualservice</code> mode.</td></tr>
 <tr><td><code>--ingress-class</code></td><td><code>operator.ingressClass</code></td><td>cluster default</td><td>IngressClass for <code>ingress</code> mode.</td></tr>
-<tr><td><code>--cluster-issuer</code></td><td><code>operator.clusterIssuer</code></td><td>—</td><td>cert-manager ClusterIssuer for <code>ingress</code> mode; when set, each app's Ingress requests its own TLS certificate. Drain-retry and WebSocket policies become ingress-nginx annotations in this mode (ignored by other controllers).</td></tr>
+<tr><td><code>--cluster-issuer</code></td><td><code>operator.clusterIssuer</code></td><td>unset</td><td>cert-manager ClusterIssuer for <code>ingress</code> mode; when set, each app's Ingress requests its own TLS certificate. Drain-retry and WebSocket policies become ingress-nginx annotations in this mode (ignored by other controllers).</td></tr>
 <tr><td><code>--prometheus-url</code></td><td><code>operator.prometheusURL</code></td><td><code>http://prometheus-operated.monitoring.svc:9090</code></td><td>Where KEDA queries the operator's <code>celld_*</code> metrics.</td></tr>
 <tr><td><code>--operator-namespace</code></td><td>release namespace</td><td><code>celld-operator-system</code></td><td>Allowed by fleet NetworkPolicies to reach :8081.</td></tr>
 <tr><td><code>--operator-principal</code></td><td><code>operator.operatorPrincipal</code></td><td>derived</td><td>Operator identity in Istio AuthorizationPolicies; empty derives <code>cluster.local/ns/&lt;release ns&gt;/sa/&lt;service account&gt;</code>.</td></tr>
@@ -154,7 +154,7 @@ absent. Flags configure the operator once; per-app behavior lives in the
 <tr><th>Value</th><th>Default</th><th>Purpose</th></tr>
 <tr><td><code>controllerManager.replicas</code></td><td><code>1</code></td><td>Manager replicas; leader election is on (<code>--leader-elect</code>).</td></tr>
 <tr><td><code>controllerManager.container.image.repository</code></td><td><code>ghcr.io/ezgamehost/celld-operator</code></td><td>Operator image.</td></tr>
-<tr><td><code>controllerManager.container.image.tag</code></td><td><code>""</code></td><td>Empty uses the chart's <code>appVersion</code> — the operator build the chart was released with.</td></tr>
+<tr><td><code>controllerManager.container.image.tag</code></td><td><code>""</code></td><td>Empty uses the chart's <code>appVersion</code>, the operator build the chart was released with.</td></tr>
 <tr><td><code>crd.enable</code></td><td><code>true</code></td><td>Include the CRDs in the release.</td></tr>
 <tr><td><code>rbac.enable</code></td><td><code>true</code></td><td>Include RBAC objects.</td></tr>
 </table></div>
@@ -187,7 +187,7 @@ The repository ships <code>hack/cas-hammer</code>, the concurrency probe for
 <span class="p">$</span> make lint     <span class="c"># golangci-lint</span>
 <span class="p">$</span> make run      <span class="c"># run against the current kubeconfig</span></code></pre>
 <p>
-Contributions are welcome — see
+Contributions are welcome; see
 <a href="https://github.com/ezgamehost/celld-operator/blob/main/CONTRIBUTING.md" rel="external">CONTRIBUTING.md</a>.
 </p>
 

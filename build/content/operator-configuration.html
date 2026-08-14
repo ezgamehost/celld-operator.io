@@ -13,9 +13,9 @@ absent. Flags configure the operator once; per-app behavior lives in the
 <tr><td><code>--ingress-mode</code></td><td><code>operator.ingressMode</code></td><td><code>httproute</code></td><td>How hostnames are routed: <code>httproute</code> (Gateway API), <code>virtualservice</code> (classic Istio), <code>ingress</code> (<code>networking.k8s.io/v1</code>), or <code>none</code>. See <a href="/docs/networking/#modes">ingress modes</a>.</td></tr>
 <tr><td><code>--gateway-name</code></td><td><code>operator.gatewayName</code></td><td><code>edge</code></td><td>Shared Gateway that HTTPRoutes attach to (<code>httproute</code> mode).</td></tr>
 <tr><td><code>--gateway-namespace</code></td><td><code>operator.gatewayNamespace</code></td><td><code>infra</code></td><td>Namespace of that Gateway.</td></tr>
-<tr><td><code>--istio-gateways</code></td><td><code>operator.istioGateways</code></td><td>—</td><td>Pre-existing <code>networking.istio.io</code> Gateways (<code>namespace/name</code>, comma-separated) that VirtualServices bind to in <code>virtualservice</code> mode.</td></tr>
+<tr><td><code>--istio-gateways</code></td><td><code>operator.istioGateways</code></td><td>unset</td><td>Pre-existing <code>networking.istio.io</code> Gateways (<code>namespace/name</code>, comma-separated) that VirtualServices bind to in <code>virtualservice</code> mode.</td></tr>
 <tr><td><code>--ingress-class</code></td><td><code>operator.ingressClass</code></td><td>cluster default</td><td>IngressClass for <code>ingress</code> mode.</td></tr>
-<tr><td><code>--cluster-issuer</code></td><td><code>operator.clusterIssuer</code></td><td>—</td><td>cert-manager ClusterIssuer for <code>ingress</code> mode; when set, each app's Ingress requests its own TLS certificate. Drain-retry and WebSocket policies become ingress-nginx annotations in this mode (ignored by other controllers).</td></tr>
+<tr><td><code>--cluster-issuer</code></td><td><code>operator.clusterIssuer</code></td><td>unset</td><td>cert-manager ClusterIssuer for <code>ingress</code> mode; when set, each app's Ingress requests its own TLS certificate. Drain-retry and WebSocket policies become ingress-nginx annotations in this mode (ignored by other controllers).</td></tr>
 <tr><td><code>--prometheus-url</code></td><td><code>operator.prometheusURL</code></td><td><code>http://prometheus-operated.monitoring.svc:9090</code></td><td>Where KEDA queries the operator's <code>celld_*</code> metrics.</td></tr>
 <tr><td><code>--operator-namespace</code></td><td>release namespace</td><td><code>celld-operator-system</code></td><td>Allowed by fleet NetworkPolicies to reach :8081.</td></tr>
 <tr><td><code>--operator-principal</code></td><td><code>operator.operatorPrincipal</code></td><td>derived</td><td>Operator identity in Istio AuthorizationPolicies; empty derives <code>cluster.local/ns/&lt;release ns&gt;/sa/&lt;service account&gt;</code>.</td></tr>
@@ -28,7 +28,7 @@ absent. Flags configure the operator once; per-app behavior lives in the
 <tr><th>Value</th><th>Default</th><th>Purpose</th></tr>
 <tr><td><code>controllerManager.replicas</code></td><td><code>1</code></td><td>Manager replicas; leader election is on (<code>--leader-elect</code>).</td></tr>
 <tr><td><code>controllerManager.container.image.repository</code></td><td><code>ghcr.io/ezgamehost/celld-operator</code></td><td>Operator image.</td></tr>
-<tr><td><code>controllerManager.container.image.tag</code></td><td><code>""</code></td><td>Empty uses the chart's <code>appVersion</code> — the operator build the chart was released with.</td></tr>
+<tr><td><code>controllerManager.container.image.tag</code></td><td><code>""</code></td><td>Empty uses the chart's <code>appVersion</code>, the operator build the chart was released with.</td></tr>
 <tr><td><code>crd.enable</code></td><td><code>true</code></td><td>Include the CRDs in the release.</td></tr>
 <tr><td><code>rbac.enable</code></td><td><code>true</code></td><td>Include RBAC objects.</td></tr>
 </table></div>
@@ -61,6 +61,6 @@ The repository ships <code>hack/cas-hammer</code>, the concurrency probe for
 <span class="p">$</span> make lint     <span class="c"># golangci-lint</span>
 <span class="p">$</span> make run      <span class="c"># run against the current kubeconfig</span></code></pre>
 <p>
-Contributions are welcome — see
+Contributions are welcome; see
 <a href="https://github.com/ezgamehost/celld-operator/blob/main/CONTRIBUTING.md" rel="external">CONTRIBUTING.md</a>.
 </p>

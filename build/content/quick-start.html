@@ -17,16 +17,16 @@ asset-only projects do not.
 
 <h2 id="publish"><a class="anchor" href="#publish">1. Deploy your Worker to the bucket</a></h2>
 <p>
-A standard Wrangler project: <code>wrangler.jsonc</code> (or <code>.json</code> —
+A standard Wrangler project: <code>wrangler.jsonc</code> (or <code>.json</code>;
 <code>wrangler.toml</code> is not accepted), module Workers, Durable Object bindings,
 static assets. Publish it to the fleet's bucket prefix:
 </p>
 <pre class="code"><code><span class="p">$</span> celld deploy . --bucket s3://platform-cells/apps/chat \
     --endpoint https://ACCOUNT.r2.cloudflarestorage.com --region auto</code></pre>
 <p>
-celld validates the config with a strict key allowlist — an unsupported key
+celld validates the config with a strict key allowlist: an unsupported key
 (<code>kv_namespaces</code>, <code>routes</code>, <code>triggers</code>, …) stops the
-deploy with an error naming the key. Nothing fails silently at runtime. Use
+deploy with an error naming the key, so nothing fails silently at runtime. Use
 <code>celld deploy . --dry-run</code> in CI to catch this on pull requests.
 </p>
 
@@ -34,7 +34,7 @@ deploy with an error naming the key. Nothing fails silently at runtime. Use
 <p>
 Worker <code>vars</code> and secrets come from a Kubernetes Secret with a
 <code>vars.env</code> key in <code>NAME=value</code> lines, passed to celld via
-<code>CELLD_VARS_FILE</code> — never baked into bundles:
+<code>CELLD_VARS_FILE</code>, never baked into bundles:
 </p>
 <pre class="code"><code><span class="p">$</span> kubectl create secret generic chat-vars -n tenant-acme \
     --from-literal=vars.env=<span class="s">'OPENAI_API_KEY=sk-…'</span></code></pre>
@@ -89,12 +89,12 @@ Conditions:
   Type               Status   Reason            Message
   Available          True     FleetReady        3/3 pods ready, restoring=0
   IngressReady       True     RouteAccepted     chat.acme.example.com → chat-celld:8080
-  AutoscalingReady   True     ScaledObjectSet   scaling 3–10 on residentCellUtilization</code></pre>
+  AutoscalingReady   True     ScaledObjectSet   scaling 3-10 on residentCellUtilization</code></pre>
 
 <h2 id="request"><a class="anchor" href="#request">5. Send a request</a></h2>
 <pre class="code"><code><span class="p">$</span> curl https://chat.acme.example.com/rooms/lobby</code></pre>
 <p>
-No hostnames? Internal-only apps need no ingress at all — in-cluster consumers reach the
+No hostnames? Internal-only apps need no ingress at all: in-cluster consumers reach the
 fleet at <code>chat-celld.tenant-acme.svc:8080</code>.
 </p>
 
@@ -103,8 +103,8 @@ fleet at <code>chat-celld.tenant-acme.svc:8080</code>.
 <span class="p">$</span> kubectl patch workerapp chat -n tenant-acme --type merge \
     -p <span class="s">'{"spec":{"appVersion":"sha-def456"}}'</span>                <span class="c"># roll the fleet</span></code></pre>
 <p>
-The operator runs a gated rolling update — one pod at a time, stepping only when the
-whole fleet reports <code>restoring=0</code> — so the rollout is invisible to clients.
+The operator runs a gated rolling update (one pod at a time, stepping only when the
+whole fleet reports <code>restoring=0</code>), so the rollout is invisible to clients.
 Prefer <code>celld deploy</code> to be the whole story? Set
 <code>appVersion: auto</code>. Both flows are covered in
 <a href="/docs/deploying/">Deploying updates</a>.

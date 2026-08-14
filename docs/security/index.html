@@ -3,28 +3,28 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Security Model and Tenancy — celld-operator</title>
+<title>Security model and tenancy · celld-operator</title>
 <meta name="description" content="celld-operator's isolation story: fleet-per-app blast radius, prefix-scoped bucket credentials, the unauthenticated internal listener, and trust boundaries.">
 <link rel="canonical" href="https://celld-operator.io/docs/security/">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/assets/style.css">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="celld-operator">
-<meta property="og:title" content="Security Model and Tenancy">
+<meta property="og:title" content="Security model and tenancy">
 <meta property="og:description" content="celld-operator's isolation story: fleet-per-app blast radius, prefix-scoped bucket credentials, the unauthenticated internal listener, and trust boundaries.">
 <meta property="og:url" content="https://celld-operator.io/docs/security/">
 <meta property="og:image" content="https://celld-operator.io/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Security Model and Tenancy">
+<meta name="twitter:title" content="Security model and tenancy">
 <meta name="twitter:description" content="celld-operator's isolation story: fleet-per-app blast radius, prefix-scoped bucket credentials, the unauthenticated internal listener, and trust boundaries.">
 <meta name="twitter:image" content="https://celld-operator.io/assets/og.png">
 <script type="application/ld+json">
 {
  "@context": "https://schema.org",
  "@type": "TechArticle",
- "headline": "Security Model and Tenancy",
+ "headline": "Security model and tenancy",
  "description": "celld-operator's isolation story: fleet-per-app blast radius, prefix-scoped bucket credentials, the unauthenticated internal listener, and trust boundaries.",
  "url": "https://celld-operator.io/docs/security/",
  "isPartOf": {
@@ -127,7 +127,7 @@
 <h1>Security</h1>
 <p class="lead">
 An honest isolation story, stated plainly: this is a platform for <em>your</em>
-applications, or your customers' applications under your operation — not for anonymous
+applications, or your customers' applications under your operation, not for anonymous
 hostile code. celld's own security page says it is not safe for hostile multi-tenant
 use; the operator's design takes that seriously instead of papering over it.
 </p>
@@ -139,7 +139,7 @@ escape hands an attacker the entire node process. The operator's answer is
 <strong>fleet-per-app</strong> blast-radius containment:
 </p>
 <ul>
-<li>Each app runs in its own fleet — its own pods, namespace-scoped resources, and
+<li>Each app runs in its own fleet, with its own pods, namespace-scoped resources, and
 NetworkPolicies.</li>
 <li>Each fleet holds one bucket credential, scoped to that fleet's prefix
 (<code>…/apps/&lt;app&gt;/</code>) and nothing else.</li>
@@ -152,7 +152,7 @@ separation.</li>
 <h2 id="internal"><a class="anchor" href="#internal">The internal listener</a></h2>
 <p>
 celld's internal listener (:8081) carries the peer protocol <em>and</em> an operator API
-that is <strong>unauthenticated by upstream design</strong> — anyone who can reach it can
+that is <strong>unauthenticated by upstream design</strong>. Anyone who can reach it can
 inspect state, evict cells, or stop the process. The operator fences it in depth:
 </p>
 <ul>
@@ -164,8 +164,8 @@ the fleet's ServiceAccount plus the operator's principal
 <li><strong>Never routed</strong>: no ingress mode ever exposes :8081.</li>
 </ul>
 <p>
-Peer requests on that listener keep celld's own protocol authentication — HMAC with the
-fleet secret, body-bound signatures, clock limits, replay protection — and the pod
+Peer requests on that listener keep celld's own protocol authentication (HMAC with the
+fleet secret, body-bound signatures, clock limits, replay protection), and the pod
 network adds mTLS via Istio ambient mode. Ambient specifically, not sidecars: celld makes
 outbound peer and bucket calls <em>during termination</em>, and a sidecar exiting first
 would break the handoff; an L7 proxy also has no business touching the HMAC-signed,
@@ -179,14 +179,14 @@ deployments, cell state, ownership leases, and the peer-auth secret; whoever hol
 credential controls the fleet. Credential scoping <em>is</em> the tenancy enforcement.</p>
 </div>
 <ul>
-<li>Prefer <code>credentialsFrom.iamRole</code> — IRSA / Workload Identity; celld's
+<li>Prefer <code>credentialsFrom.iamRole</code> (IRSA / Workload Identity); celld's
 credential chain accepts web identity tokens. One role per fleet, locked to the fleet's
 prefix.</li>
 <li><code>credentialsFrom.secretRef</code> (static <code>AWS_ACCESS_KEY_ID</code> /
 <code>AWS_SECRET_ACCESS_KEY</code>) exists for stores without role-based auth. Static keys
 spread; treat them as a fallback.</li>
 <li>Rotate immediately after suspected disclosure. celld does not read
-<code>~/.aws</code> profiles or SSO logins — credentials are environment-only, which is
+<code>~/.aws</code> profiles or SSO logins; credentials come from the environment only, which is
 exactly what the operator provisions.</li>
 </ul>
 
@@ -195,7 +195,7 @@ exactly what the operator provisions.</li>
 <li>celld terminates no TLS anywhere. Public TLS belongs to the Gateway; the pod network
 should be encrypted (ambient mesh, or a CNI with WireGuard).</li>
 <li>The deployed Worker owns every public path except <code>/__celld/health</code>.
-<strong>Application authentication is the application's job</strong> — celld does not
+<strong>Application authentication is the application's job</strong>; celld does not
 authenticate end users.</li>
 </ul>
 
@@ -207,13 +207,13 @@ authenticate end users.</li>
 <tr><td>Anything → operator API (:8081)</td><td>NetworkPolicy + AuthorizationPolicy; never routed</td></tr>
 <tr><td>Node ↔ node</td><td>celld HMAC/replay auth + ambient mTLS</td></tr>
 <tr><td>Fleet → bucket</td><td>Per-fleet, prefix-scoped IAM role</td></tr>
-<tr><td>Operator → fleets</td><td>The operator's ServiceAccount — the only cross-namespace :8081 caller</td></tr>
+<tr><td>Operator → fleets</td><td>The operator's ServiceAccount, the only cross-namespace :8081 caller</td></tr>
 </table></div>
 
 <h2 id="policy"><a class="anchor" href="#policy">Support and disclosure</a></h2>
 <p>
 Upstream ships security fixes for the latest celld release only; the operator's support
-policy mirrors it — current celld, current operator. Report operator vulnerabilities per
+policy mirrors it: current celld, current operator. Report operator vulnerabilities per
 the repository's
 <a href="https://github.com/ezgamehost/celld-operator/blob/main/SECURITY.md" rel="external">SECURITY.md</a>;
 report celld issues upstream at

@@ -2,7 +2,7 @@
 <p class="lead">
 CPU is the wrong primary signal for celld: fleets are capacity-bound by
 <strong>resident cells and memory</strong>, and upstream ships no metrics endpoint yet.
-The operator closes both gaps — it exports the metrics and encodes the scaling policy.
+The operator closes both gaps: it exports the metrics and encodes the scaling policy.
 </p>
 
 <h2 id="metrics"><a class="anchor" href="#metrics">The metrics source</a></h2>
@@ -15,10 +15,10 @@ sees as Prometheus metrics, per WorkerApp and per pod, on the leader every
 <div class="tbl-wrap"><table>
 <tr><th>Metric</th><th>Meaning</th></tr>
 <tr><td><code>celld_resident_cells</code></td><td>Occupied (resident) cells per pod.</td></tr>
-<tr><td><code>celld_resident_cell_utilization</code></td><td>occupied / <code>maxResidentCells</code> (0..1) — the primary scale signal.</td></tr>
-<tr><td><code>celld_restoring</code></td><td>Cold activations in flight — a churn signal, used to <em>hold</em> scaling, not trigger it.</td></tr>
+<tr><td><code>celld_resident_cell_utilization</code></td><td>occupied / <code>maxResidentCells</code> (0..1), the primary scale signal.</td></tr>
+<tr><td><code>celld_restoring</code></td><td>Cold activations in flight, a churn signal that holds scaling rather than triggering it.</td></tr>
 <tr><td><code>celld_evicting</code></td><td>Cells being evicted.</td></tr>
-<tr><td><code>celld_shedding</code></td><td>1 while pressure-shedding — the hard out-of-capacity signal.</td></tr>
+<tr><td><code>celld_shedding</code></td><td>1 while pressure-shedding; the hard out-of-capacity signal.</td></tr>
 <tr><td><code>celld_state_up</code></td><td>1 if <code>/state</code> answered the last poll.</td></tr>
 </table></div>
 <p>
@@ -51,11 +51,11 @@ traffic-bound, stateless-Worker-heavy apps scale even at low cell counts.</li>
 <li><strong>Scale up early; expect slow absorption.</strong> celld has no rebalancer: a
 new pod is a spare that fills only as traffic activates unowned cells or as pressure
 shedding releases them. Hence the conservative 70% default target and the shedding
-fast-path — by the time shedding starts, the fleet is already rebalancing the hard way.</li>
+fast-path: by the time shedding starts, the fleet is already rebalancing the hard way.</li>
 <li><strong>Scale down slowly, and never during churn.</strong> Removing a pod is a
 graceful drain, but it hands that node's cells to peers (cold restores) and closes its
 WebSockets (clients reconnect). Default: one pod per 5 minutes after a long stabilization
-window — 30 minutes for <code>websockets: true</code> fleets.</li>
+window (30 minutes for <code>websockets: true</code> fleets).</li>
 <li><strong>Autoscaling and rollouts never fight.</strong> While the phase is
 <code>RollingOut</code> or <code>Recreating</code>, the operator pauses the ScaledObject
 (KEDA pause annotation) and pins replicas; the partition arithmetic assumes a stable
@@ -66,8 +66,8 @@ count. Scaling resumes when the fleet reports <code>restoring=0</code>.</li>
 <p>
 Autoscaling needs <a href="https://keda.sh" rel="external">KEDA</a> installed and a
 Prometheus scraping the operator. When KEDA is absent, <code>spec.autoscaling</code> has
-no effect and the WorkerApp reports <code>AutoscalingReady: False</code> — the fleet
-simply runs at <code>spec.replicas</code>.
+no effect and the WorkerApp reports <code>AutoscalingReady: False</code>; the fleet
+runs at <code>spec.replicas</code>.
 </p>
 <div class="note">
 <p><strong>Sizing rule of thumb</strong> (upstream): ~1,000 resident cells per 8&nbsp;GiB

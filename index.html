@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Self-Hosted Cloudflare Workers on Kubernetes — celld-operator</title>
+<title>Self-Hosted Cloudflare Workers on Kubernetes · celld-operator</title>
 <meta name="description" content="celld-operator is an open-source Kubernetes operator for celld: run Cloudflare Workers and Durable Objects on your own cluster. One CRD provisions ingress, gated rollouts, and autoscaling.">
 <link rel="canonical" href="https://celld-operator.io/">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -65,7 +65,7 @@
     <h1>Self-hosted Durable Objects, <em>operated by Kubernetes</em>.</h1>
     <p class="lede">
       celld-operator runs Cloudflare Workers and Durable Objects on your own cluster with
-      <a href="https://celld.dev" rel="external">celld</a> — and supplies everything celld
+      <a href="https://celld.dev" rel="external">celld</a>, and supplies everything celld
       deliberately leaves out: fleet provisioning, ingress, gated rollouts, autoscaling,
       and tenancy. One custom resource, one complete platform.
     </p>
@@ -97,8 +97,7 @@
       <p>
         workerd gives you self-hosted stateless Workers. What nobody else offers is
         distributed, durable, self-hosted <strong>Durable Objects</strong>: your agents, rooms,
-        documents, and tenants as named stateful cells on infrastructure you control —
-        with RPO=0 durability against an object-storage bucket you own.
+        documents, and tenants as named stateful cells on infrastructure you control, with RPO=0 durability against an object-storage bucket you own.
       </p>
     </div>
     <div class="grid cols-3">
@@ -115,7 +114,7 @@
       <div class="card">
         <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
         <h3>Operational rules, encoded</h3>
-        <p>celld's drain semantics, rollout gating, and memory bounds are enforced by the reconciler. There are no templates to misconfigure — the controller cannot be talked into unsafe states.</p>
+        <p>celld's drain semantics, rollout gating, and memory bounds are enforced by the reconciler. There are no templates to misconfigure. The controller cannot be talked into unsafe states.</p>
       </div>
     </div>
   </div>
@@ -128,8 +127,8 @@
         <span class="kicker">How it works</span>
         <h2>Nodes coordinate through a bucket. The operator does the rest.</h2>
         <p>
-          celld nodes share one object-storage bucket — deployments, per-cell SQLite state,
-          and ownership leases — with no consensus service. Object-storage compare-and-swap
+          celld nodes share one object-storage bucket (deployments, per-cell SQLite state,
+          and ownership leases) with no consensus service. Object-storage compare-and-swap
           guarantees exactly one node owns a cell at a time.
         </p>
         <p>
@@ -215,7 +214,7 @@
         <p>
           Declare hostnames, the app version, the bucket, sizing, and scaling targets.
           The operator reconciles the workload, networking, security policy, ingress,
-          rollout gating, metrics, and autoscaling — and reports fleet health back
+          rollout gating, metrics, and autoscaling, then reports fleet health back
           in <code>status</code>.
         </p>
         <div class="term">
@@ -265,12 +264,12 @@ chat   Ready   sha-abc123   3       0</pre>
     <div class="section-head">
       <span class="kicker">Features</span>
       <h2>The control plane celld deliberately ships without</h2>
-      <p>celld supplies the runtime and the data plane; the operator supplies the platform. Upstream stays unpatched — the operator's celld-facing surface is env vars, signals, and two HTTP endpoints.</p>
+      <p>celld supplies the runtime and the data plane; the operator supplies the platform. Upstream stays unpatched: the operator's celld-facing surface is env vars, signals, and two HTTP endpoints.</p>
     </div>
     <div class="grid cols-3">
       <div class="card">
         <h3>Gated rollouts</h3>
-        <p>Not a vanilla rolling update: the operator releases one pod at a time and steps only when the <em>whole fleet</em> reports <code>restoring=0</code> — the restore load lands on peers, which a stock rollout cannot see. Progress lives in <code>status.rollout.waitingOn</code>.</p>
+        <p>Not a vanilla rolling update: the operator releases one pod at a time and steps only when the <em>whole fleet</em> reports <code>restoring=0</code>. The restore load lands on peers, which a stock rollout cannot see. Progress lives in <code>status.rollout.waitingOn</code>.</p>
       </div>
       <div class="card">
         <h3>Custom-metrics autoscaling</h3>
@@ -286,7 +285,7 @@ chat   Ready   sha-abc123   3       0</pre>
       </div>
       <div class="card">
         <h3>GitOps-native deploys</h3>
-        <p>Pin <code>appVersion</code> in git and let your GitOps tool roll the fleet — or set <code>appVersion: auto</code> and a plain <code>celld deploy</code> rolls it within one poll interval. Version drift surfaces as a status condition, never silently.</p>
+        <p>Pin <code>appVersion</code> in git and let your GitOps tool roll the fleet, or set <code>appVersion: auto</code> and a plain <code>celld deploy</code> rolls it within one poll interval. Version drift always surfaces as a status condition.</p>
       </div>
       <div class="card">
         <h3>Built-in telemetry</h3>
@@ -307,12 +306,12 @@ chat   Ready   sha-abc123   3       0</pre>
           this operator puts them in the reconciler. There are no templates to drift.
         </p>
         <ul class="checklist">
-          <li><strong>Liveness is TCP-only.</strong> celld's health path answers 503 during a graceful drain; an HTTP liveness probe there would kill nodes mid-handoff.</li>
+          <li><strong>Liveness is TCP only.</strong> celld's health path answers 503 during a graceful drain; an HTTP liveness probe there would kill nodes mid-handoff.</li>
           <li><strong>Termination grace exceeds the drain bound</strong>, so the kubelet never SIGKILLs a draining node.</li>
-          <li><strong><code>CELLD_MAX_RSS_MB</code> is set explicitly</strong> to ~80% of the container memory limit — the upstream default is not cgroup-aware.</li>
+          <li><strong><code>CELLD_MAX_RSS_MB</code> is set explicitly</strong> to ~80% of the container memory limit, because the upstream default is not cgroup-aware.</li>
           <li><strong>The internal listener stays internal.</strong> Port 8081 is reachable only from fleet pods and the operator, and is never routed.</li>
           <li><strong>Peers can reach draining pods</strong> so cell handoff works while a node reports unready.</li>
-          <li><strong>Breaking celld upgrades are refused</strong> unless the resource explicitly opts into a Recreate — a GitOps diff alone can never create a mixed fleet.</li>
+          <li><strong>Breaking celld upgrades are refused</strong> unless the resource explicitly opts into a Recreate, so a GitOps diff alone can never create a mixed fleet.</li>
         </ul>
       </div>
       <div>
@@ -326,8 +325,8 @@ chat   Ready   sha-abc123   3       0</pre>
         </p>
         <ul class="checklist">
           <li><strong>RPO=0.</strong> A write is not acknowledged before it is durable in the bucket. Nodes are replaceable; the bucket is the source of truth.</li>
-          <li><strong>One writer per cell.</strong> Object-storage compare-and-swap fences ownership — no consensus service, no membership protocol.</li>
-          <li><strong>Cheap density.</strong> One 8&nbsp;GB node holds ~1,000 resident cells — about $0.05 per resident cell per month. Inactive cells cost nearly nothing.</li>
+          <li><strong>One writer per cell.</strong> Object-storage compare-and-swap fences ownership, with no consensus service or membership protocol.</li>
+          <li><strong>Cheap density.</strong> One 8&nbsp;GB node holds ~1,000 resident cells, about $0.05 per resident cell per month. Inactive cells cost nearly nothing.</li>
           <li><strong>Real Durable Objects.</strong> SQLite storage, alarms, hibernatable WebSockets, JS RPC, service bindings, static assets, WebAssembly. <a href="/docs/compatibility/">See the compatibility matrix</a>.</li>
         </ul>
       </div>

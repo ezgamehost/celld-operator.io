@@ -18,37 +18,37 @@ PAGES = [
      "Install celld-operator on Kubernetes",
      "Install the celld-operator with Helm or kustomize: prerequisites, optional integrations (Gateway API, Istio, KEDA), and how to verify the installation."),
     ("quick-start", "Getting started", "Quick start",
-     "Quick Start: Your First WorkerApp",
+     "Quick start: your first WorkerApp",
      "Deploy a Wrangler project to your bucket with celld deploy, create a WorkerApp resource, and watch the operator converge a running celld fleet."),
     ("architecture", "Concepts", "Architecture",
-     "celld-operator Architecture",
+     "celld-operator architecture",
      "How celld-operator works: fleet-per-app tenancy, the resources reconciled per WorkerApp, the celld facts the design depends on, and the trust boundaries."),
     ("object-stores", "Concepts", "Object stores",
-     "Object Store Requirements",
+     "Object store requirements",
      "celld requires atomically enforced conditional writes and read-after-write consistency. Qualified stores, disqualified stores, and how to qualify your own."),
     ("compatibility", "Concepts", "Cloudflare compatibility",
-     "Cloudflare Workers Compatibility Matrix",
+     "Cloudflare Workers compatibility matrix",
      "Which Cloudflare Workers and Durable Objects APIs run on celld: supported, planned, and not-planned services, runtime API status, and honest shims."),
     ("deploying", "Guides", "Deploying updates",
-     "Deploying Updates and Rollouts",
+     "Deploying updates and rollouts",
      "How deploys work on celld-operator: publish to the bucket, roll the fleet with the gated rollout controller, appVersion auto-tracking, and celld version upgrades."),
     ("autoscaling", "Guides", "Autoscaling",
-     "Autoscaling celld Fleets with KEDA",
+     "Autoscaling celld fleets with KEDA",
      "Scale celld fleets on resident-cell utilization, not CPU: the operator's /state-derived Prometheus metrics, KEDA ScaledObjects, and celld-aware scaling policy."),
     ("networking", "Guides", "Networking &amp; ingress",
-     "Networking, Ingress, and WebSockets",
+     "Networking, ingress, and WebSockets",
      "Route WorkerApp hostnames via Gateway API, Istio, or Ingress; keep the internal listener private; serve WebSockets through hibernation-friendly edge policy."),
     ("security", "Guides", "Security",
-     "Security Model and Tenancy",
+     "Security model and tenancy",
      "celld-operator's isolation story: fleet-per-app blast radius, prefix-scoped bucket credentials, the unauthenticated internal listener, and trust boundaries."),
     ("observability", "Guides", "Observability",
-     "Observability: Telemetry and Metrics",
+     "Observability: telemetry and metrics",
      "Per-tenant traces and logs as Parquet in your own bucket or OTLP to a collector, plus the operator's Prometheus metrics for fleet capacity and health."),
     ("workerapp", "Reference", "WorkerApp reference",
-     "WorkerApp API Reference (v1alpha1)",
+     "WorkerApp API reference (v1alpha1)",
      "Complete reference for the WorkerApp custom resource: every spec field with defaults and validation, status phases, rollout state, and conditions."),
     ("operator-configuration", "Reference", "Operator configuration",
-     "Operator Configuration Reference",
+     "Operator configuration reference",
      "Every celld-operator flag and Helm value: ingress modes, gateway wiring, poll intervals, Prometheus URL, and graceful degradation when integrations are absent."),
 ]
 
@@ -205,7 +205,7 @@ def page_html(idx: int, body: str) -> str:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{title} — celld-operator</title>
+<title>{title} · celld-operator</title>
 <meta name="description" content="{desc}">
 <link rel="canonical" href="{url}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -272,7 +272,7 @@ def build() -> None:
     # 404
     body_404 = '''<div style="max-width:36rem; margin:5rem auto; text-align:center; padding:0 1.25rem">
 <h1 style="font-size:4rem; margin-bottom:0">404</h1>
-<p style="font-size:1.1rem; color:var(--muted)">This page does not exist — like an inactive cell, it costs nothing, but unlike one, it will not activate on request.</p>
+<p style="font-size:1.1rem; color:var(--muted)">This page does not exist. Like an inactive cell it costs nothing, but unlike one, it will not activate on request.</p>
 <p><a class="btn btn-primary" href="/">Back to the homepage</a> &nbsp; <a class="btn" style="border:1px solid var(--border)" href="/docs/">Browse the docs</a></p>
 </div>'''
     (OUT / "404.html").write_text(f'''<!DOCTYPE html>
@@ -280,7 +280,7 @@ def build() -> None:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Page Not Found — celld-operator</title>
+<title>Page not found · celld-operator</title>
 <meta name="robots" content="noindex">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/assets/style.css">

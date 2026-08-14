@@ -11,14 +11,14 @@ wires both correctly.
 (<code>--ingress-mode</code>, or <code>operator.ingressMode</code> in Helm):</p>
 <div class="tbl-wrap"><table>
 <tr><th>Mode</th><th>Mechanism</th><th>When to use it</th></tr>
-<tr><td><code>httproute</code> (default)</td><td>One Gateway API HTTPRoute per hostname in the app's namespace, attached to a shared platform Gateway (<code>--gateway-name</code>/<code>--gateway-namespace</code>, default <code>edge</code>/<code>infra</code>) via ReferenceGrant. TLS at the Gateway via cert-manager.</td><td>Modern clusters; Istio's Gateway API implementation recommended.</td></tr>
+<tr><td><code>httproute</code> (default)</td><td>One Gateway API HTTPRoute per hostname in the app's namespace, attached to a shared platform Gateway (<code>--gateway-name</code>/<code>--gateway-namespace</code>, default <code>edge</code>/<code>infra</code>) via ReferenceGrant. TLS at the Gateway via cert-manager.</td><td>Clusters that already run Gateway API; Istio's implementation is the one this was built against.</td></tr>
 <tr><td><code>virtualservice</code></td><td>Classic Istio VirtualServices bound to pre-existing <code>networking.istio.io</code> Gateways (<code>--istio-gateways</code>, comma-separated <code>namespace/name</code>).</td><td>Clusters whose edge is an existing istio-ingressgateway.</td></tr>
 <tr><td><code>ingress</code></td><td>Plain <code>networking.k8s.io/v1</code> Ingress; <code>--ingress-class</code> selects the class, and <code>--cluster-issuer</code> makes each app's Ingress request its own cert-manager TLS certificate. Drain-retry and WebSocket policies are expressed as ingress-nginx annotations (ignored by other controllers).</td><td>ingress-nginx, Traefik, cloud ingress controllers.</td></tr>
 <tr><td><code>none</code></td><td>No routes are created; <code>hostnames</code> has no effect.</td><td>Internal-only platforms, or ingress managed entirely outside the operator.</td></tr>
 </table></div>
 <p>
 When Gateway API CRDs are missing in <code>httproute</code> mode, or a route errors, the
-WorkerApp reports <code>IngressReady: False</code> and hostnames are simply not routed —
+WorkerApp reports <code>IngressReady: False</code> and hostnames are not routed;
 the fleet itself keeps running.
 </p>
 
@@ -38,8 +38,8 @@ directly at <code>&lt;app&gt;-celld.&lt;namespace&gt;.svc:8080</code>. The
 A draining celld node answers new requests with 503 and a closed connection, expecting
 the client to retry against a healthy node. At the platform edge, <em>the gateway is that
 client</em>: the operator configures <strong>explicit retry-on-503</strong> on every route
-(Istio's default <code>retryOn</code> does not cover 503 responses), which makes drains —
-and therefore rollouts — invisible to end users.
+(Istio's default <code>retryOn</code> does not cover 503 responses), which makes drains,
+and therefore rollouts, invisible to end users.
 </p>
 <p>Related wiring the operator takes care of:</p>
 <ul>
@@ -47,7 +47,7 @@ and therefore rollouts — invisible to end users.
 leaves the EndpointSlice.</li>
 <li>The headless internal Service sets <code>publishNotReadyAddresses</code>, so peers can
 still reach a draining pod to receive its cells.</li>
-<li>Liveness is TCP-only — an HTTP liveness probe on the health path would kill nodes
+<li>Liveness is TCP only, because an HTTP liveness probe on the health path would kill nodes
 mid-handoff.</li>
 </ul>
 
@@ -58,7 +58,7 @@ socket-friendly profile:</p>
 <li><strong>Generous stream and idle timeouts</strong> so quiet, hibernated sockets are
 not severed by the proxy. WebSocket routes get their request timeout disabled.</li>
 <li><strong>Session affinity as a warm-path optimization</strong> (consistent-hash
-DestinationRule where Istio is present). Correctness never depends on it — celld's signed
+DestinationRule where Istio is present). Correctness never depends on it; celld's signed
 peer tunnel serves any cell from any node.</li>
 <li><strong>Conservative scale-down</strong>: a removed pod closes its sockets, so the
 stabilization window stretches to 30 minutes. See
@@ -66,15 +66,15 @@ stabilization window stretches to 30 minutes. See
 </ul>
 <div class="note">
 <p><strong>Keeping proxies happy without waking cells:</strong> have clients ping
-periodically and answer with <code>setWebSocketAutoResponse</code> — celld replies to a
+periodically and answer with <code>setWebSocketAutoResponse</code>: celld replies to a
 matched message without waking the hibernated cell, and the proxy's idle clock resets.</p>
 </div>
 
 <h2 id="tls"><a class="anchor" href="#tls">Where TLS lives</a></h2>
 <p>
 celld terminates no TLS anywhere. Public TLS belongs to the Gateway (or Ingress +
-cert-manager). The pod network should be encrypted — Istio ambient mode, or a CNI with
-WireGuard — because celld's peer protocol relies on network confidentiality for its
+cert-manager). The pod network should be encrypted (Istio ambient mode, or a CNI with
+WireGuard) because celld's peer protocol relies on network confidentiality for its
 payloads (its HMAC auth protects integrity, not secrecy).
 </p>
 <p>

@@ -1,7 +1,7 @@
 <h1>Deploying updates</h1>
 <p class="lead">
 celld nodes load their application deployment from the bucket <strong>at startup
-only</strong> — publishing a new version serves nothing until the fleet restarts. Every
+only</strong>, so publishing a new version serves nothing until the fleet restarts. Every
 deploy is therefore two steps: publish to the bucket, then roll the fleet. The operator
 owns the second step and makes it safe.
 </p>
@@ -17,8 +17,8 @@ string names a deployment in the fleet bucket, written there by <code>celld depl
 <p>
 In pinned mode the operator still reads the bucket's <code>deploy/current.json</code>
 pointer and raises a <code>DeployTrackingReady: VersionMismatch</code> warning when the
-bucket and the resource disagree — nodes always load the bucket's version, so drift is
-surfaced, never silent.
+bucket and the resource disagree. Nodes always load the bucket's version, so drift is
+surfaced rather than silent.
 </p>
 
 <h2 id="auto"><a class="anchor" href="#auto">Auto mode: follow the bucket</a></h2>
@@ -38,7 +38,7 @@ operator's ambient AWS identity otherwise.
 <p>
 Vanilla StatefulSet rolling updates gate each step on the <em>new pod's</em> readiness.
 celld's documented rule is different: after restarting a node, wait until <em>every</em>
-node reports <code>restoring=0</code> before restarting the next — and that restore work
+node reports <code>restoring=0</code> before restarting the next, and that restore work
 lands on the <strong>peers</strong> that absorbed the drained node's cells, which a stock
 rolling update cannot see. Running ahead of the fleet's real recovery is not a data-loss
 risk (the bucket is authoritative, RPO=0), but it is a cold-start latency storm: warm
@@ -54,7 +54,7 @@ capacity leaves faster than the fleet re-warms.
   partition ← 0; status.rolledOutAppVersion ← appVersion</code></pre>
 <p>
 If any wait exceeds its budget, the rollout holds its partition, the phase turns
-<code>Degraded</code>, and a condition names the gate — the operator never proceeds past
+<code>Degraded</code>, and a condition names the gate; the operator never proceeds past
 a churning fleet. Progress is visible at any moment in
 <code>status.rollout.waitingOn</code> (for example <code>celld-2: Ready</code> or
 <code>fleet: restoring=3</code>).
@@ -62,20 +62,20 @@ a churning fleet. Progress is visible at any moment in
 <p>
 During any rollout the autoscaler is paused and replicas are pinned, so KEDA and the
 partition controller never fight over replica count. Drain 503s are retried at the
-gateway, making rollouts invisible to clients — see
+gateway, so rollouts are invisible to clients; see
 <a href="/docs/networking/#drains">Networking &amp; ingress</a>.
 </p>
 
 <h2 id="celld-upgrades"><a class="anchor" href="#celld-upgrades">celld version upgrades</a></h2>
 <p>
-Bumping <code>spec.celld.image</code> rolls the fleet the same gated way — except across
+Bumping <code>spec.celld.image</code> rolls the fleet the same gated way, except across
 boundaries upstream flags as <strong>not rolling-safe</strong>. celld v0.1.0 → v0.2.0 was
 one: advertise records and block-object formats changed, and mixed fleets are forbidden.
 </p>
 <p>
 The operator maintains a version-compatibility table from celld release notes and
 <strong>refuses</strong> a Rolling strategy across a flagged boundary with
-<code>phase: Degraded</code> — a GitOps diff alone can never create a mixed fleet. To
+<code>phase: Degraded</code>, so a GitOps diff alone can never create a mixed fleet. To
 cross the boundary, the resource must explicitly set:
 </p>
 <pre class="code"><code><span class="k">celld:</span>
@@ -87,8 +87,8 @@ version. That is an availability event <em>by design</em>; the resource has to a
 it, and status surfaces it as <code>phase: Recreating</code>.
 </p>
 <div class="warn">
-<p>celld ships security fixes for its <strong>latest release only</strong> — plan to
-track head, and keep the operator current alongside (the internal <code>/state</code> API
+<p>celld ships security fixes for its <strong>latest release only</strong>, so plan to
+track head and keep the operator current alongside (the internal <code>/state</code> API
 the operator depends on is explicitly unstable, so operator and celld versions are
 qualified as pairs).</p>
 </div>
@@ -107,7 +107,7 @@ baked into bundles.
 <ol>
 <li><strong>Pull request:</strong> pinned esbuild + <code>celld deploy . --dry-run</code>.
 Unsupported <a href="/docs/compatibility/#config">config keys</a> fail here with a clean
-named-key error — never at runtime.</li>
+named-key error, not at runtime.</li>
 <li><strong>Merge:</strong> <code>celld deploy .</code> against the fleet's bucket prefix.
 The bucket now holds the new deployment; nothing is serving it yet.</li>
 <li><strong>Roll out:</strong> bump <code>spec.appVersion</code> (GitOps), or let

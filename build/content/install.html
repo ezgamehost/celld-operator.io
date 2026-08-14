@@ -6,23 +6,30 @@ namespace and watches <code>WorkerApp</code> resources cluster-wide.
 
 <h2 id="prerequisites"><a class="anchor" href="#prerequisites">Prerequisites</a></h2>
 <ul>
-<li><strong>Kubernetes 1.30+</strong> and cluster-admin access to install CRDs.</li>
+<li><strong>Kubernetes 1.30 or newer</strong> (the version this is developed and tested
+against; the chart sets no <code>kubeVersion</code> floor, so older clusters install
+without warning and are untested) and cluster-admin access to install CRDs.</li>
 <li><strong>A qualified object store.</strong> celld's ownership fencing requires atomically
 enforced conditional writes (<code>If-None-Match: *</code>, <code>If-Match</code>) and
-read-after-write consistency. Qualified: Amazon S3, Cloudflare R2, Google Cloud Storage,
-Azure Blob, Tigris. <em>Not</em> qualified: MinIO community edition, Backblaze B2,
-DigitalOcean Spaces, Hetzner. For anything else, run
+read-after-write consistency, and celld speaks only the S3 and Google Cloud Storage
+dialects. Qualified: Amazon S3, Cloudflare R2, Tigris, Google Cloud Storage. <em>Not</em>
+qualified: MinIO community edition, Backblaze B2, DigitalOcean Spaces, Hetzner. Stores
+with no S3-compatible API, Azure Blob Storage among them, cannot back a fleet at all. For anything else, run
 <a href="/docs/object-stores/#qualification">store qualification</a> first: an unenforced
 condition silently splits cell ownership.</li>
 </ul>
 
 <h3 id="optional"><a class="anchor" href="#optional">Optional integrations</a></h3>
-<p>Each of these is optional and degrades gracefully to a status condition when absent:</p>
+<p>Each of these is optional. The first three report their absence as a status condition
+on every WorkerApp; the last two are silent, so their absence shows up as an Ingress that
+no controller acts on or a certificate that is never issued:</p>
 <div class="tbl-wrap"><table>
 <tr><th>Integration</th><th>What it enables</th><th>Condition when absent</th></tr>
-<tr><td><a href="https://gateway-api.sigs.k8s.io/" rel="external">Gateway API</a> CRDs + an implementation (Istio recommended)</td><td>Hostname ingress via HTTPRoutes on a shared Gateway</td><td><code>IngressReady</code>: hostnames are not routed</td></tr>
+<tr><td><a href="https://gateway-api.sigs.k8s.io/" rel="external">Gateway API</a> CRDs + an implementation (Istio recommended)</td><td>Hostname ingress via HTTPRoutes on a shared Gateway. Install the <strong>experimental</strong> channel: the standard channel drops <code>HTTPRouteRule.retry</code>, so drain 503s reach clients during rollouts (reported as <code>RouteReconciledRetryDropped</code>)</td><td><code>IngressReady</code>: hostnames are not routed</td></tr>
 <tr><td><a href="https://istio.io/" rel="external">Istio</a> (ambient mode recommended)</td><td>AuthorizationPolicies on the internal listener, mTLS for the peer network</td><td><code>MeshPolicyReady</code>: NetworkPolicy alone guards <code>:8081</code></td></tr>
-<tr><td><a href="https://keda.sh/" rel="external">KEDA</a> + Prometheus (scraping the operator)</td><td>Custom-metrics autoscaling</td><td><code>AutoscalingReady</code>: <code>spec.autoscaling</code> has no effect</td></tr>
+<tr><td><a href="https://keda.sh/" rel="external">KEDA</a> + Prometheus (scraping the operator)</td><td>Custom-metrics autoscaling</td><td><code>AutoscalingReady</code>: <code>spec.autoscaling</code> has no effect (KEDA's absence only; a missing Prometheus is not detected)</td></tr>
+<tr><td>An ingress controller (ingress-nginx, Traefik, a cloud controller)</td><td><code>--ingress-mode=ingress</code>: serving the Ingress objects the operator emits</td><td>None — the Ingress is created and simply not acted on</td></tr>
+<tr><td><a href="https://cert-manager.io/" rel="external">cert-manager</a></td><td><code>--cluster-issuer</code>: per-app TLS certificates on emitted Ingresses</td><td>None — the annotation is written and no certificate is issued</td></tr>
 </table></div>
 <div class="note">
 <p>Ambient mode specifically, not sidecars: celld makes outbound peer and bucket calls
@@ -36,7 +43,7 @@ Ambient encrypts the peer network without putting a proxy in celld's drain path.
     --namespace celld-operator-system --create-namespace \
     --set operator.ingressMode=httproute   <span class="c"># or virtualservice / ingress / none</span></code></pre>
 <p>
-Every operator flag is a Helm value: <code>operator.ingressMode</code>,
+Nearly every operator flag is a Helm value: <code>operator.ingressMode</code>,
 <code>operator.gatewayName</code>, <code>operator.istioGateways</code>,
 <code>operator.ingressClass</code>, <code>operator.clusterIssuer</code>,
 <code>operator.prometheusURL</code>, <code>operator.deployPollInterval</code>, and friends.

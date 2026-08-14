@@ -19,15 +19,26 @@ NetworkPolicies.</li>
 (<code>…/apps/&lt;app&gt;/</code>) and nothing else.</li>
 <li>A full runtime compromise inside one fleet therefore reaches only that app's pods and
 that app's prefix.</li>
-<li>For higher assurance tiers, pin fleets to dedicated node pools for kernel-level
-separation.</li>
 </ul>
+<p>
+Two limits belong next to that claim. Within a fleet there is no per-cell resource quota:
+upstream notes that a defective cell can access only its own database but can still
+consume its fleet nodes' resources, so a runaway cell starves its neighbours in the same
+app. And <code>WorkerApp</code> exposes no scheduling fields — no
+<code>nodeSelector</code>, <code>affinity</code>, or <code>tolerations</code> — so
+pinning fleets to dedicated node pools for kernel-level separation needs a cluster-level
+mechanism (a namespace default node selector, or a mutating admission policy), not a
+field on the resource.
+</p>
 
 <h2 id="internal"><a class="anchor" href="#internal">The internal listener</a></h2>
 <p>
-celld's internal listener (:8081) carries the peer protocol <em>and</em> an operator API
-that is <strong>unauthenticated by upstream design</strong>. Anyone who can reach it can
-inspect state, evict cells, or stop the process. The operator fences it in depth:
+celld's internal listener — which the operator pins to <code>:8081</code>; celld itself
+defaults to an ephemeral loopback port — carries the peer protocol <em>and</em> an
+operator API that is <strong>unauthenticated by upstream design</strong>. Anyone who can
+reach it can inspect state, evict cells, stop the process, activate a cell, and send it a
+direct Durable Object request: that is application code execution and state mutation, not
+just inspection. The operator fences it in depth:
 </p>
 <ul>
 <li><strong>NetworkPolicy</strong>: ingress to :8081 only from fleet pods and the
@@ -39,8 +50,11 @@ the fleet's ServiceAccount plus the operator's principal
 </ul>
 <p>
 Peer requests on that listener keep celld's own protocol authentication (HMAC with the
-fleet secret, body-bound signatures, clock limits, replay protection), and the pod
-network adds mTLS via Istio ambient mode. Ambient specifically, not sidecars: celld makes
+fleet secret, body-bound signatures, clock limits, replay protection). celld terminates
+no TLS, so confidentiality on the peer network is the cluster's job: the operator neither
+installs nor requires a mesh, and without one it reports
+<code>MeshPolicyReady: False</code> and leaves NetworkPolicy as the only guard. Where you
+do add a mesh, prefer Istio ambient mode for mTLS. Ambient specifically, not sidecars: celld makes
 outbound peer and bucket calls <em>during termination</em>, and a sidecar exiting first
 would break the handoff; an L7 proxy also has no business touching the HMAC-signed,
 body-bound peer protocol.
@@ -53,15 +67,21 @@ deployments, cell state, ownership leases, and the peer-auth secret; whoever hol
 credential controls the fleet. Credential scoping <em>is</em> the tenancy enforcement.</p>
 </div>
 <ul>
-<li>Prefer <code>credentialsFrom.iamRole</code> (IRSA / Workload Identity); celld's
-credential chain accepts web identity tokens. One role per fleet, locked to the fleet's
-prefix.</li>
+<li>Prefer <code>credentialsFrom.iamRole</code>, which the operator renders as the EKS
+IRSA annotation <code>eks.amazonaws.com/role-arn</code> on the fleet's ServiceAccount;
+celld's credential chain accepts the resulting web identity token. Scope one role per
+fleet to that fleet's prefix — the operator copies the ARN you give it and does not
+validate its scope. GKE Workload Identity is <em>not</em> wired yet, so on GKE this field
+has no effect; and <code>iamRole: auto</code> (operator-provisioned roles) is not
+implemented — it reports <code>BucketCredentialsReady: False</code> and asks you to
+annotate the ServiceAccount yourself.</li>
 <li><code>credentialsFrom.secretRef</code> (static <code>AWS_ACCESS_KEY_ID</code> /
 <code>AWS_SECRET_ACCESS_KEY</code>) exists for stores without role-based auth. Static keys
 spread; treat them as a fallback.</li>
 <li>Rotate immediately after suspected disclosure. celld does not read
-<code>~/.aws</code> profiles or SSO logins; credentials come from the environment only, which is
-exactly what the operator provisions.</li>
+<code>~/.aws</code> profiles or SSO logins; it takes credentials from the
+<code>AWS_*</code> environment or from explicit managed credentials, which includes
+instance metadata and web identity tokens — the two paths the operator drives.</li>
 </ul>
 
 <h2 id="tls"><a class="anchor" href="#tls">TLS and application auth</a></h2>
@@ -77,11 +97,11 @@ authenticate end users.</li>
 <div class="tbl-wrap"><table>
 <tr><th>Boundary</th><th>Mechanism</th></tr>
 <tr><td>Internet → Worker</td><td>Gateway TLS + per-host routing; app-level auth in the Worker</td></tr>
-<tr><td>Tenant ↔ tenant</td><td>Namespaces, NetworkPolicy, fleet-scoped IAM, optional node pools</td></tr>
+<tr><td>Tenant ↔ tenant</td><td>Namespaces, NetworkPolicy, fleet-scoped IAM (node-pool separation via cluster-level policy)</td></tr>
 <tr><td>Anything → operator API (:8081)</td><td>NetworkPolicy + AuthorizationPolicy; never routed</td></tr>
-<tr><td>Node ↔ node</td><td>celld HMAC/replay auth + ambient mTLS</td></tr>
+<tr><td>Node ↔ node</td><td>celld HMAC/replay auth; transport encryption from your mesh or CNI, if any</td></tr>
 <tr><td>Fleet → bucket</td><td>Per-fleet, prefix-scoped IAM role</td></tr>
-<tr><td>Operator → fleets</td><td>The operator's ServiceAccount, the only cross-namespace :8081 caller</td></tr>
+<tr><td>Operator → fleets</td><td>NetworkPolicy admits the whole operator namespace; the Istio policy, where installed, narrows it to the operator's ServiceAccount</td></tr>
 </table></div>
 
 <h2 id="policy"><a class="anchor" href="#policy">Support and disclosure</a></h2>

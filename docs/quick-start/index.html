@@ -173,7 +173,7 @@ Worker <code>vars</code> and secrets come from a Kubernetes Secret with a
   <span class="k">namespace:</span> <span class="s">tenant-acme</span>
 <span class="k">spec:</span>
   <span class="k">hostnames:</span> <span class="s">["chat.acme.example.com"]</span>  <span class="c"># routed via the shared Gateway</span>
-  <span class="k">appVersion:</span> <span class="s">sha-abc123</span>                <span class="c"># which bucket deployment is live</span>
+  <span class="k">appVersion:</span> <span class="s">a3f9c1d2e4b57081</span>          <span class="c"># the Version ID celld deploy printed</span>
   <span class="k">celld:</span>
     <span class="k">image:</span> <span class="s">ghcr.io/denoland/celld:v0.2.0</span>
     <span class="k">updateStrategy:</span> <span class="s">Rolling</span>            <span class="c"># Recreate for non-rolling celld upgrades</span>
@@ -203,8 +203,8 @@ Worker <code>vars</code> and secrets come from a Kubernetes Secret with a
 
 <h2 id="watch"><a class="anchor" href="#watch">4. Watch it converge</a></h2>
 <pre class="code"><code><span class="p">$</span> kubectl get workerapps -n tenant-acme
-NAME   PHASE   APP          READY   RESTORING   AGE
-chat   Ready   sha-abc123   3       0           2m</code></pre>
+NAME   PHASE   APP                READY   RESTORING   AGE
+chat   Ready   a3f9c1d2e4b57081   3       0           2m</code></pre>
 <p>
 If something is missing (Gateway API CRDs, KEDA, credentials), the resource stays
 functional where it can and reports the gap as a condition:
@@ -212,10 +212,19 @@ functional where it can and reports the gap as a condition:
 <pre class="code"><code><span class="p">$</span> kubectl describe workerapp chat -n tenant-acme
 …
 Conditions:
-  Type               Status   Reason            Message
-  Available          True     FleetReady        3/3 pods ready, restoring=0
-  IngressReady       True     RouteAccepted     chat.acme.example.com → chat-celld:8080
-  AutoscalingReady   True     ScaledObjectSet   scaling 3-10 on residentCellUtilization</code></pre>
+  Type                     Status   Reason
+  Available                True     Ready
+  BucketCredentialsReady   True     Configured
+  DeployTrackingReady      True     Tracking
+  IngressReady             True     RouteReconciled
+  MeshPolicyReady          False    IstioUnavailable
+  AutoscalingReady         False    KEDAUnavailable</code></pre>
+<p>
+A missing integration is reported, not fatal: here Istio and KEDA are absent, so the
+NetworkPolicy alone guards the internal listener and <code>spec.autoscaling</code> has
+no effect — the fleet still serves. Reasons are machine-readable strings; only the
+False conditions carry an explanatory message.
+</p>
 
 <h2 id="request"><a class="anchor" href="#request">5. Send a request</a></h2>
 <pre class="code"><code><span class="p">$</span> curl https://chat.acme.example.com/rooms/lobby</code></pre>
@@ -225,9 +234,10 @@ fleet at <code>chat-celld.tenant-acme.svc:8080</code>.
 </p>
 
 <h2 id="update"><a class="anchor" href="#update">6. Ship an update</a></h2>
-<pre class="code"><code><span class="p">$</span> celld deploy . --bucket s3://platform-cells/apps/chat …   <span class="c"># publish sha-def456</span>
+<pre class="code"><code><span class="p">$</span> celld deploy . --bucket s3://platform-cells/apps/chat …
+Current Version ID: 7b21e0c4a9d3f508                              <span class="c"># celld prints this</span>
 <span class="p">$</span> kubectl patch workerapp chat -n tenant-acme --type merge \
-    -p <span class="s">'{"spec":{"appVersion":"sha-def456"}}'</span>                <span class="c"># roll the fleet</span></code></pre>
+    -p <span class="s">'{"spec":{"appVersion":"7b21e0c4a9d3f508"}}'</span>          <span class="c"># roll the fleet</span></code></pre>
 <p>
 The operator runs a gated rolling update (one pod at a time, stepping only when the
 whole fleet reports <code>restoring=0</code>), so the rollout is invisible to clients.

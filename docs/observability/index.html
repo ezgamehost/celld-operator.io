@@ -141,7 +141,7 @@ Prometheus metrics (capacity and health, derived from each pod's <code>/state</c
 <div class="tbl-wrap"><table>
 <tr><th>Sink</th><th>Behavior</th></tr>
 <tr><td><code>bucket</code> (default)</td><td>Parquet traces and logs under the fleet bucket's <code>telemetry/</code> prefix, partitioned by node and hour. DuckDB queries them directly, with no services to run. celld deletes files older than <code>retention</code>.</td></tr>
-<tr><td><code>otlp</code></td><td>OTLP/HTTP protobuf to the collector at <code>otlpEndpoint</code> (sets <code>OTEL_EXPORTER_OTLP_ENDPOINT</code>). Setting <code>otlpEndpoint</code> without a sink selects <code>otlp</code> automatically.</td></tr>
+<tr><td><code>otlp</code></td><td>OTLP/HTTP protobuf to the collector at <code>otlpEndpoint</code> (sets <code>OTEL_EXPORTER_OTLP_ENDPOINT</code>). Setting <code>otlpEndpoint</code> without a sink selects <code>otlp</code> automatically. Every fleet reports as its own service: the operator sets <code>OTEL_SERVICE_NAME</code> to the WorkerApp name, so a shared collector does not flatten all fleets into celld's default <code>celld</code> service.</td></tr>
 </table></div>
 <p>What celld emits:</p>
 <ul>
@@ -168,8 +168,10 @@ SELECT name, count(*), avg(duration_us)/1000 AS avg_ms
 FROM 's3://platform-cells/apps/chat/telemetry/traces/*/*/*/*/*/*.parquet'
 GROUP BY name ORDER BY 2 DESC;</code></pre>
 <p>
-For near-live queries, lower <code>CELLD_OTEL_FLUSH_MS</code>, but run the hourly
-compaction job first or queries grow slow within hours. The job is a DuckDB
+celld flushes a Parquet file every 5 minutes by default (or sooner at 5&nbsp;MiB of
+buffered events), which bounds how fresh these queries can be; the operator exposes no
+field for that interval, so treat the bucket sink as minutes-behind rather than live. Run
+the hourly compaction job or queries grow slow within hours. The job is a DuckDB
 <code>COPY</code> that rewrites one past hour of small files into one zstd Parquet;
 run it on a maintenance node, because celld does not compact its own files.
 </p>
@@ -197,8 +199,8 @@ metrics) until upstream ships a native metrics signal.
 
 <h2 id="status"><a class="anchor" href="#status">At-a-glance status</a></h2>
 <pre class="code"><code><span class="p">$</span> kubectl get workerapps -A
-NAMESPACE     NAME    PHASE        APP          READY   RESTORING
-tenant-acme   chat    Ready        sha-def456   3       0
+NAMESPACE     NAME    PHASE        APP                READY   RESTORING   AGE
+tenant-acme   chat    Ready        7b21e0c4a9d3f508   3       0           4d
 tenant-beta   docs    RollingOut   sha-11aa22   2       1</code></pre>
 <p>
 <code>PHASE</code>, the rolled-out version, ready pods, and fleet-wide restoring count are

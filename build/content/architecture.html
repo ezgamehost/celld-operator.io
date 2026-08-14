@@ -26,8 +26,8 @@ they cannot be misconfigured.
 <tr><th>Component</th><th>Role</th></tr>
 <tr><td><strong>celld-operator</strong></td><td>Watches <code>WorkerApp</code> resources, reconciles the full per-fleet stack, owns rollout sequencing, exports fleet metrics.</td></tr>
 <tr><td><strong>Deploy pipeline</strong> (your CI)</td><td>Builds Wrangler projects with <code>celld deploy</code> and publishes deployments to the fleet bucket, then bumps <code>appVersion</code> (or lets <code>appVersion: auto</code> pick it up).</td></tr>
-<tr><td><strong>Shared edge</strong></td><td>One platform-owned Gateway (Gateway API); one HTTPRoute per app in the tenant's namespace, attached via ReferenceGrant. TLS via cert-manager.</td></tr>
-<tr><td><strong>Object store</strong></td><td>Externally operated and <a href="/docs/object-stores/">qualified</a>. The operator provisions prefixes and credentials but never runs the store: a cluster incident must not take out compute and the source of truth together.</td></tr>
+<tr><td><strong>Shared edge</strong></td><td>One platform-owned Gateway (Gateway API); one HTTPRoute per app in the tenant's namespace, attached by <code>parentRefs</code> and authorized by the Gateway's own <code>allowedRoutes</code>. TLS belongs to the Gateway.</td></tr>
+<tr><td><strong>Object store</strong></td><td>Externally operated and <a href="/docs/object-stores/">qualified</a>. The bucket, its prefix, and its credentials are inputs you supply; the operator neither provisions nor runs the store, and it should live outside the cluster so one incident cannot take out compute and the source of truth together.</td></tr>
 </table></div>
 
 <h2 id="tenancy"><a class="anchor" href="#tenancy">Tenancy: fleet-per-app</a></h2>
@@ -42,7 +42,9 @@ Under fleet-per-app, that node holds only the tenant's own cells, and its bucket
 credential (one IAM role per fleet, locked to <code>…/apps/&lt;app&gt;/</code> and nothing
 else) reaches only the tenant's own prefix. <strong>The blast radius of a full runtime
 compromise is the tenant's own app.</strong> For higher assurance tiers, pin fleets to
-dedicated node pools for kernel-level separation.
+dedicated node pools for kernel-level separation — which today means a cluster-level
+mechanism such as a namespace default node selector or an admission policy, since
+<code>WorkerApp</code> exposes no scheduling fields.
 </p>
 <p>
 <strong>The economics.</strong> The unit of tenancy is a fleet (two to three pods minimum
@@ -65,7 +67,8 @@ optimization later. Details the operator sets:
 <li>Environment: <code>CELLD_BUCKET</code>, <code>CELLD_INTERNAL_ADDR=0.0.0.0:8081</code>,
 <code>CELLD_ADVERTISE</code>, <code>CELLD_SHUTDOWN_DRAIN_MS=25000</code>,
 <code>CELLD_MAX_RESIDENT_CELLS</code>, <code>CELLD_MAX_RSS_MB</code> (~80% of the container
-memory limit, set explicitly because the upstream default is not cgroup-aware),
+memory limit, set explicitly so the ceiling is visible in the pod spec rather than
+inferred — celld would otherwise derive the same 80% from the cgroup limit itself),
 <code>CELLD_VARS_FILE</code> from the vars Secret, and <code>CELLD_OTEL=1</code> when
 telemetry is enabled.</li>
 <li><code>terminationGracePeriodSeconds: 40</code>: drain bound plus margin, so the
@@ -76,7 +79,7 @@ signal.</li>
 <li><strong>Liveness probe: TCP-socket only.</strong> An HTTP liveness probe on the health
 path would kill nodes mid-drain, converting every graceful handoff into the abrupt-kill
 path.</li>
-<li>Pod-template annotation <code>celld.platform/app-version</code>, the declarative
+<li>Pod-template annotation <code>celld-operator.io/app-version</code>, the declarative
 rollout trigger, since nodes load their deployment from the bucket at startup only.</li>
 <li>The StatefulSet's <code>rollingUpdate.partition</code> is owned by the
 <a href="/docs/deploying/#gated">rollout controller</a>, never by hand and never directly by GitOps.</li>
@@ -85,7 +88,8 @@ rollout trigger, since nodes load their deployment from the bucket at startup on
 <h3 id="net"><a class="anchor" href="#net">Networking and security wrapping</a></h3>
 <ul>
 <li>Public Service on :8080; ingress per the configured
-<a href="/docs/networking/#modes">ingress mode</a>, with 503-retry and WebSocket policy.</li>
+<a href="/docs/networking/#modes">ingress mode</a>, each carrying 503-retry policy, and
+WebSocket timeout policy in the modes that can express it.</li>
 <li>NetworkPolicy: <code>:8081</code> ingress from fleet pods and the operator's namespace
 only. Reinforced by an Istio AuthorizationPolicy when Istio is installed. The internal
 listener is never routed.</li>
@@ -93,7 +97,7 @@ listener is never routed.</li>
 draining pods while they hand off cells.</li>
 <li>PodDisruptionBudget <code>maxUnavailable: 1</code>, so node maintenance stays as
 serialized as rollouts.</li>
-<li>Per-fleet ServiceAccount; bucket credentials via IRSA / Workload Identity
+<li>Per-fleet ServiceAccount; bucket credentials via EKS IRSA (GKE Workload Identity is not wired yet)
 (celld's credential chain accepts web identity tokens) or a Secret.</li>
 </ul>
 
@@ -117,11 +121,11 @@ serialized as rollouts.</li>
 <div class="tbl-wrap"><table>
 <tr><th>Boundary</th><th>Mechanism</th></tr>
 <tr><td>Internet → Worker</td><td>Gateway: TLS termination, per-host routing. Application-level auth is the tenant's job; celld does not authenticate end users.</td></tr>
-<tr><td>Tenant ↔ tenant</td><td>Namespace + NetworkPolicy + fleet-scoped IAM; optional dedicated node pools.</td></tr>
+<tr><td>Tenant ↔ tenant</td><td>Namespace + NetworkPolicy + fleet-scoped IAM; node-pool separation via cluster-level policy.</td></tr>
 <tr><td>Anything → operator API (:8081)</td><td>Unauthenticated by design upstream → NetworkPolicy + AuthorizationPolicy; only fleet pods and the operator reach it; never routed.</td></tr>
 <tr><td>Node ↔ node (peer protocol)</td><td>celld's own HMAC/replay auth <em>plus</em> ambient mTLS for confidentiality.</td></tr>
 <tr><td>Fleet → bucket</td><td>Per-fleet IAM role, prefix-scoped. The bucket credential is fleet-admin authority, so scoping <em>is</em> the tenancy enforcement.</td></tr>
-<tr><td>Operator → fleets</td><td>The operator's own ServiceAccount, the only authorized cross-namespace <code>:8081</code> caller.</td></tr>
+<tr><td>Operator → fleets</td><td>NetworkPolicy admits the operator's namespace; with Istio installed, the AuthorizationPolicy narrows it to the operator's ServiceAccount.</td></tr>
 </table></div>
 
 <h2 id="layout"><a class="anchor" href="#layout">Repository layout</a></h2>

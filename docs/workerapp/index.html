@@ -230,7 +230,7 @@ fleet, and the app are 1:1:1.
 <h3 id="printers"><a class="anchor" href="#printers">Printer columns</a></h3>
 <pre class="code"><code><span class="p">$</span> kubectl get workerapps -n tenant-acme
 NAME   PHASE   APP          READY   RESTORING   AGE
-chat   Ready   sha-abc123   3       0           2m</code></pre>
+chat   Ready   a3f9c1d2e4b57081   3       0           2m</code></pre>
 
 <h2 id="example"><a class="anchor" href="#example">Complete example</a></h2>
 <pre class="code"><code><span class="k">apiVersion:</span> <span class="s">celld-operator.io/v1alpha1</span>
@@ -240,7 +240,7 @@ chat   Ready   sha-abc123   3       0           2m</code></pre>
   <span class="k">namespace:</span> <span class="s">tenant-acme</span>
 <span class="k">spec:</span>
   <span class="k">hostnames:</span> <span class="s">["chat.acme.example.com"]</span>
-  <span class="k">appVersion:</span> <span class="s">sha-abc123</span>
+  <span class="k">appVersion:</span> <span class="s">a3f9c1d2e4b57081</span>
   <span class="k">celld:</span>
     <span class="k">image:</span> <span class="s">ghcr.io/denoland/celld:v0.2.0</span>
     <span class="k">updateStrategy:</span> <span class="s">Rolling</span>

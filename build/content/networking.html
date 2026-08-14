@@ -11,7 +11,7 @@ wires both correctly.
 (<code>--ingress-mode</code>, or <code>operator.ingressMode</code> in Helm):</p>
 <div class="tbl-wrap"><table>
 <tr><th>Mode</th><th>Mechanism</th><th>When to use it</th></tr>
-<tr><td><code>httproute</code> (default)</td><td>One Gateway API HTTPRoute per hostname in the app's namespace, attached to a shared platform Gateway (<code>--gateway-name</code>/<code>--gateway-namespace</code>, default <code>edge</code>/<code>infra</code>) via ReferenceGrant. TLS at the Gateway via cert-manager.</td><td>Clusters that already run Gateway API; Istio's implementation is the one this was built against.</td></tr>
+<tr><td><code>httproute</code> (default)</td><td>One Gateway API HTTPRoute per app, carrying every hostname in <code>spec.hostnames</code>, attached to a shared platform Gateway by <code>parentRefs</code> (<code>--gateway-name</code>/<code>--gateway-namespace</code>, default <code>edge</code>/<code>infra</code>). Cross-namespace attachment is authorized by that Gateway's <code>allowedRoutes</code>; TLS is the Gateway's own. <strong>The drain-503 retry needs experimental-channel CRDs</strong> — see below.</td><td>Clusters that already run Gateway API; Istio's implementation is the one this was built against.</td></tr>
 <tr><td><code>virtualservice</code></td><td>Classic Istio VirtualServices bound to pre-existing <code>networking.istio.io</code> Gateways (<code>--istio-gateways</code>, comma-separated <code>namespace/name</code>).</td><td>Clusters whose edge is an existing istio-ingressgateway.</td></tr>
 <tr><td><code>ingress</code></td><td>Plain <code>networking.k8s.io/v1</code> Ingress; <code>--ingress-class</code> selects the class, and <code>--cluster-issuer</code> makes each app's Ingress request its own cert-manager TLS certificate. Drain-retry and WebSocket policies are expressed as ingress-nginx annotations (ignored by other controllers).</td><td>ingress-nginx, Traefik, cloud ingress controllers.</td></tr>
 <tr><td><code>none</code></td><td>No routes are created; <code>hostnames</code> has no effect.</td><td>Internal-only platforms, or ingress managed entirely outside the operator.</td></tr>
@@ -38,8 +38,16 @@ directly at <code>&lt;app&gt;-celld.&lt;namespace&gt;.svc:8080</code>. The
 A draining celld node answers new requests with 503 and a closed connection, expecting
 the client to retry against a healthy node. At the platform edge, <em>the gateway is that
 client</em>: the operator configures <strong>explicit retry-on-503</strong> on every route
-(Istio's default <code>retryOn</code> does not cover 503 responses), which makes drains,
-and therefore rollouts, invisible to end users.
+it emits (Istio's default <code>retryOn</code> does not cover 503 responses), which makes
+drains, and therefore rollouts, invisible to end users.
+</p>
+<p>
+One caveat in <code>httproute</code> mode: <code>HTTPRouteRule.retry</code> exists only in
+the Gateway API <strong>experimental</strong> channel. Standard-channel CRDs accept the
+route and silently drop the field, so the operator checks the stored object and reports
+<code>IngressReady: True</code> with reason <code>RouteReconciledRetryDropped</code> and
+the message <em>drain 503s are not retried at the gateway</em>. If you see that reason,
+either install the experimental channel or expect clients to see 503s during rollouts.
 </p>
 <p>Related wiring the operator takes care of:</p>
 <ul>
@@ -55,15 +63,23 @@ mid-handoff.</li>
 <p><code>spec.websockets: true</code> switches the app's routes and scaling to a
 socket-friendly profile:</p>
 <ul>
-<li><strong>Generous stream and idle timeouts</strong> so quiet, hibernated sockets are
-not severed by the proxy. WebSocket routes get their request timeout disabled.</li>
-<li><strong>Session affinity as a warm-path optimization</strong> (consistent-hash
-DestinationRule where Istio is present). Correctness never depends on it; celld's signed
-peer tunnel serves any cell from any node.</li>
+<li><strong>Generous timeouts</strong> so quiet, hibernated sockets are not severed by the
+proxy — but only in the modes that can express them: <code>httproute</code> disables the
+route's request timeout, and <code>ingress</code> sets
+<code>proxy-read-timeout</code>/<code>proxy-send-timeout</code> to 3600s. In
+<code>virtualservice</code> mode the operator emits no timeout override, so Istio's
+default route timeout still applies — set it on your own <code>VirtualService</code> or
+mesh defaults if you serve long-lived sockets that way.</li>
 <li><strong>Conservative scale-down</strong>: a removed pod closes its sockets, so the
-stabilization window stretches to 30 minutes. See
+stabilization window stretches to 30 minutes (from 10). See
 <a href="/docs/autoscaling/#policy">autoscaling policy</a>.</li>
 </ul>
+<p>
+Note there is no session affinity: the operator emits no <code>DestinationRule</code> and
+sets no sticky-session annotation. It does not need one — celld's signed peer tunnel
+serves any cell from any node — but if you want requests to land on a cell's owner for
+latency reasons, that is your own edge configuration to add.
+</p>
 <div class="note">
 <p><strong>Keeping proxies happy without waking cells:</strong> have clients ping
 periodically and answer with <code>setWebSocketAutoResponse</code>: celld replies to a

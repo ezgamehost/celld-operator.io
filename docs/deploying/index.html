@@ -135,16 +135,20 @@ owns the second step and makes it safe.
 <h2 id="pinned"><a class="anchor" href="#pinned">Pinned mode: appVersion in git</a></h2>
 <pre class="code"><code><span class="p">$</span> celld deploy . --bucket s3://platform-cells/apps/chat …    <span class="c"># 1. publish</span>
 <span class="p">$</span> kubectl patch workerapp chat -n tenant-acme --type merge \
-    -p <span class="s">'{"spec":{"appVersion":"sha-def456"}}'</span>                 <span class="c"># 2. roll</span></code></pre>
+    -p <span class="s">'{"spec":{"appVersion":"7b21e0c4a9d3f508"}}'</span>           <span class="c"># 2. roll</span></code></pre>
 <p>
 Or bump <code>appVersion</code> in git and let your GitOps tool apply it. The version
-string names a deployment in the fleet bucket, written there by <code>celld deploy</code>.
+string is the <em>Version ID</em> <code>celld deploy</code> prints — a 16-character hex
+digest of the deployment, not a git SHA — and the operator matches it literally against
+the bucket pointer.
 </p>
 <p>
-In pinned mode the operator still reads the bucket's <code>deploy/current.json</code>
-pointer and raises a <code>DeployTrackingReady: VersionMismatch</code> warning when the
-bucket and the resource disagree. Nodes always load the bucket's version, so drift is
-surfaced rather than silent.
+In pinned mode, a fleet whose credentials come from <code>bucket.credentialsFrom.secretRef</code>
+also gets a drift check: the operator reads <code>deploy/current.json</code> and raises
+<code>DeployTrackingReady: VersionMismatch</code> when the bucket and the resource
+disagree, because nodes load the bucket's version regardless of what the resource says.
+Fleets authenticating with <code>iamRole</code> get no such check — the operator does not
+read the bucket for them, so drift stays silent.
 </p>
 
 <h2 id="auto"><a class="anchor" href="#auto">Auto mode: follow the bucket</a></h2>
@@ -157,7 +161,22 @@ and <code>status.rolledOutAppVersion</code> reports the concrete version being s
 </p>
 <p>
 Tracking reads use the fleet's <code>secretRef</code> credentials when set, or the
-operator's ambient AWS identity otherwise.
+operator's ambient AWS identity otherwise, and are cached per fleet for one poll
+interval. Two limits are worth knowing before you rely on auto mode:
+</p>
+<ul>
+<li><strong><code>s3://</code> buckets only.</strong> A <code>gs://</code> fleet reports
+<code>DeployTrackingReady: BucketUnreachable</code> permanently; pin
+<code>appVersion</code> instead.</li>
+<li><strong>An unreachable bucket never rolls the fleet anywhere.</strong> With a cached
+value the operator holds it (<code>BucketUnreachable</code>, message
+<em>holding last known version …</em>); with no value ever read it falls back to the
+version the live fleet already runs. A tracking outage freezes the version, it does not
+change it.</li>
+</ul>
+<p>
+On success the condition is <code>DeployTrackingReady: True</code>, reason
+<code>Tracking</code>, message <em>following &lt;version&gt;</em>.
 </p>
 
 <h2 id="gated"><a class="anchor" href="#gated">The gated rollout</a></h2>
@@ -172,23 +191,36 @@ capacity leaves faster than the fleet re-warms.
 </p>
 <p>The operator implements the documented procedure with the StatefulSet partition:</p>
 <pre class="code"><code><span class="c">on template change (appVersion, image, or secret rotation):</span>
-  partition ← replicas                    <span class="c"># freeze: no pod updates yet</span>
-  for ordinal in (replicas−1) … 0:
-    partition ← ordinal                   <span class="c"># release exactly one pod</span>
-    wait: pod[ordinal] runs the new revision and is Ready
-    wait: every fleet pod reports /state restoring == 0
-  partition ← 0; status.rolledOutAppVersion ← appVersion</code></pre>
+  partition ← live replica count          <span class="c"># freeze: no pod updates yet</span>
+  while partition &gt; 0:
+    gate 1: every already-released ordinal (≥ partition) runs the
+            new revision and is Ready
+    gate 2: the fleet reports /state restoring == 0
+    both pass → partition ← partition − 1  <span class="c"># release exactly one more pod</span>
+  <span class="c"># status.rolledOutAppVersion is set later, once the StatefulSet</span>
+  <span class="c"># itself reports fully updated and ready.</span></code></pre>
 <p>
-If any wait exceeds its budget, the rollout holds its partition, the phase turns
-<code>Degraded</code>, and a condition names the gate; the operator never proceeds past
-a churning fleet. Progress is visible at any moment in
-<code>status.rollout.waitingOn</code> (for example <code>celld-2: Ready</code> or
-<code>fleet: restoring=3</code>).
+Both gates are evaluated <em>before</em> each step, so a fleet must already be at
+<code>restoring=0</code> before the first pod is released. Gate 2 polls every running
+pod, with one deliberate exception: a pod that is both unreachable and not Ready is
+skipped, because it holds no cells — otherwise a fleet that was never healthy could
+never roll out the fix for whatever broke it. A pod that is Ready but unreachable does
+hold the gate.
 </p>
 <p>
-During any rollout the autoscaler is paused and replicas are pinned, so KEDA and the
-partition controller never fight over replica count. Drain 503s are retried at the
-gateway, so rollouts are invisible to clients; see
+There is no timeout. A rollout that cannot pass a gate waits indefinitely in phase
+<code>RollingOut</code>, re-checking every 10–15 seconds, and never proceeds past a
+churning fleet. Watch <code>status.rollout.waitingOn</code> to see why — for example
+<code>chat-celld-2: not ready</code>, <code>fleet: restoring=3</code>, or
+<code>state unreachable: pod chat-celld-1: …</code>. Alert on a rollout that stays in
+<code>RollingOut</code>, not on <code>Degraded</code>: the operator reserves
+<code>Degraded</code> for a refused breaking upgrade.
+</p>
+<p>
+Whenever the fleet is not <code>Ready</code> — rolling out, recreating, converging, or
+degraded — the autoscaler is paused and replicas are pinned, so KEDA and the partition
+controller never fight over replica count. Where the edge retries drain 503s, rollouts
+are invisible to clients; see
 <a href="/docs/networking/#drains">Networking &amp; ingress</a>.
 </p>
 

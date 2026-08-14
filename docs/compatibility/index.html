@@ -142,7 +142,7 @@ consistency model).
 <tr><th>Status</th><th>Services</th></tr>
 <tr><td><span class="status-ok">Supported</span></td><td>Module Workers (<code>fetch</code>, JS RPC, service bindings, <code>vars</code>) · Durable Objects (SQLite storage, alarms, hibernatable inbound WebSockets, outbound WebSocket clients, one writer per cell, names as addresses, RPC on stubs) · Static assets (<code>assets.directory</code>, <code>binding</code>, <code>html_handling</code>, <code>not_found_handling</code>, <code>run_worker_first</code>, <code>_headers</code>, <code>_redirects</code>; asset-only projects deploy without a Worker) · WebAssembly · a substantial <code>node:</code> subset · Worker Loader / Code Mode (experimental)</td></tr>
 <tr><td>Planned upstream</td><td>D1 · Workflows · Queues (if demand appears). All are built on Durable Objects</td></tr>
-<tr><td><span class="status-bad">Not planned</span></td><td>KV · R2 (declared <code>r2_buckets</code> bindings load, but every method throws) · Cache API · cron <code>scheduled</code> handlers · HTMLRewriter · Workers AI (an experimental HTTP adapter exists behind <code>CELLD_AI_URL</code>) · Vectorize · Hyperdrive · Browser Rendering · Email · TLS termination</td></tr>
+<tr><td><span class="status-bad">Not planned</span></td><td>KV · R2 (declared <code>r2_buckets</code> bindings load, but every method throws) · Cache API · cron <code>scheduled</code> handlers · Workers AI (an experimental HTTP adapter exists behind <code>CELLD_AI_URL</code>) · Vectorize · Hyperdrive · Browser Rendering · Email · custom domains · TLS termination</td></tr>
 </table></div>
 
 <h2 id="runtime"><a class="anchor" href="#runtime">Runtime API status</a></h2>
@@ -153,19 +153,35 @@ consistency model).
 <tr><td>JS RPC</td><td>Yes: <code>WorkerEntrypoint</code>, <code>RpcTarget</code>, promise pipelining, stubs in DO storage. Limit: a stub cannot cross an isolate boundary yet, and a cross-isolate service binding with a named entrypoint supports single method calls only.</td></tr>
 <tr><td>Streams</td><td>Yes, including byte streams, BYOB, <code>CompressionStream</code>/<code>DecompressionStream</code>. Gap: <code>ReadableStream.from()</code>.</td></tr>
 <tr><td>WebSockets</td><td>Yes: inbound hibernatable sockets with attachments, outbound clients, <code>setWebSocketAutoResponse</code> (answers without waking the cell). Gap: <code>getTags()</code>.</td></tr>
-<tr><td>Web Crypto</td><td>Partial: digest/HMAC/AES-GCM/ECDSA/Ed25519/RSA-OAEP and most import/export paths, plus Cloudflare's <code>timingSafeEqual</code> and <code>DigestStream</code>. Missing: <code>wrapKey</code>/<code>unwrapKey</code>, RSA-PSS signing, HKDF/PBKDF2 via <code>deriveBits</code> (both available through <code>node:crypto</code>). An unavailable algorithm throws.</td></tr>
-<tr><td>Web standards</td><td><code>URL</code>, <code>URLPattern</code>, <code>AbortController</code>/<code>AbortSignal</code>, <code>Blob</code>/<code>File</code>/<code>FormData</code>, <code>structuredClone</code>, <code>queueMicrotask</code>, encodings, <code>atob</code>/<code>btoa</code>.</td></tr>
+<tr><td>Web Crypto</td><td>Partial: digest, HMAC sign/verify, AES-GCM/CBC/CTR, Ed25519 and ECDSA&nbsp;P-256 signing, RSA-OAEP <em>decrypt</em> (not encrypt), and most import/export paths, plus Cloudflare's <code>timingSafeEqual</code> and <code>DigestStream</code>. Missing: <code>wrapKey</code>/<code>unwrapKey</code>, RSA-PSS signing, HKDF/PBKDF2 via <code>deriveBits</code> (both available through <code>node:crypto</code>). An unavailable algorithm throws.</td></tr>
+<tr><td>Web standards</td><td><code>URL</code>, <code>URLPattern</code>, <code>AbortController</code>/<code>AbortSignal</code>, <code>Blob</code>/<code>File</code>/<code>FormData</code>, <code>structuredClone</code>, <code>queueMicrotask</code>, encodings, <code>atob</code>/<code>btoa</code>. Caveats: a signal does <em>not</em> abort across an RPC call; <code>signal.onabort</code> is accepted but never invoked (use <code>addEventListener('abort')</code>); <code>structuredClone</code> is not conformant on exotic types.</td></tr>
 <tr><td>WebAssembly</td><td>Yes: V8's own, without restrictions. <code>.wasm</code> imports yield compiled modules (same rule as Wrangler), compiled once per process. Rust via workers-rs works.</td></tr>
 <tr><td>Timers</td><td><code>setTimeout</code>, <code>setImmediate</code>, <code>scheduler.wait()</code>. <strong><code>setInterval</code> throws.</strong> <code>performance.now()</code> has millisecond resolution.</td></tr>
-<tr><td><code>node:</code> compat</td><td>Always available: celld externalizes <code>node:*</code> at bundle time and does not need (or read) the <code>nodejs_compat</code> flag. Implemented: <code>assert</code>, <code>async_hooks</code> (real <code>AsyncLocalStorage</code>), <code>buffer</code>, <code>events</code>, <code>path</code>, <code>stream</code>, <code>timers/promises</code>, <code>util</code>. Partial: <code>crypto</code>, <code>zlib</code> (sync gzip/deflate only), <code>fs</code> (reads fail with <code>ENOENT</code>). Not implemented: <code>http(s)</code>, <code>net</code>, <code>tls</code>, <code>dns</code>, <code>os</code>, <code>vm</code>, <code>worker_threads</code>, <code>child_process</code>.</td></tr>
+<tr><td><code>node:</code> compat</td><td>Always available: celld externalizes <code>node:*</code> at bundle time and does not need (or read) the <code>nodejs_compat</code> flag. Implemented: <code>assert</code>, <code>async_hooks</code> (real <code>AsyncLocalStorage</code>), <code>buffer</code>, <code>events</code>, <code>path</code>, <code>stream</code>, <code>timers/promises</code>, <code>util</code>. Partial: <code>crypto</code>, <code>zlib</code> (sync gzip/deflate only), <code>fs</code> (reads fail with <code>ENOENT</code>). Not implemented: <code>http(s)</code>, <code>net</code>, <code>tls</code>, <code>dns</code>, <code>os</code>, <code>process</code> (the <code>process</code> global exists; the module does not), <code>vm</code>, <code>worker_threads</code>, <code>child_process</code>.</td></tr>
+<tr><td>Context (<code>ctx</code>)</td><td><code>waitUntil</code>, <code>props</code>, <code>exports</code>. <code>passThroughOnException()</code> is accepted but has no effect — there is no CDN behind it. <code>ctx.facets</code> is absent.</td></tr>
+<tr><td>Console</td><td><code>log</code>/<code>info</code>/<code>warn</code>/<code>error</code> are real. <code>debug</code>/<code>trace</code>/<code>group</code>/<code>table</code> do nothing; <code>assert</code>/<code>time</code>/<code>count</code> are absent.</td></tr>
+<tr><td><code>EventSource</code>, <code>MessageChannel</code>, <code>BroadcastChannel</code></td><td>No. The classes exist so bundles load, but they do nothing.</td></tr>
 <tr><td>Cache (<code>caches</code>), HTMLRewriter, TCP sockets, facets</td><td>No.</td></tr>
 </table></div>
 
 <div class="warn">
-<p><strong>Known silent gaps</strong> (upstream-documented exceptions to the fail-loudly
-rule): <code>cloudflare:sockets</code>' <code>connect()</code> returns an inert stub
-instead of throwing, and unimplemented <code>node:</code> modules import as inert stubs.
-Everything else that is unsupported throws or fails the deploy.</p>
+<p><strong>Known silent gaps.</strong> celld's rule is that an unavailable API fails
+loudly, and most do — an unknown Wrangler key fails the deploy, an unavailable Web Crypto
+algorithm throws, <code>setInterval</code> throws. These are the upstream-documented
+exceptions, which accept your call and quietly do nothing:</p>
+<ul>
+<li><code>cloudflare:sockets</code>' <code>connect()</code> returns an inert stub instead
+of throwing</li>
+<li>unimplemented <code>node:</code> modules import as inert stubs</li>
+<li><code>EventSource</code>, <code>MessageChannel</code>, <code>BroadcastChannel</code>
+construct but do nothing</li>
+<li><code>ctx.passThroughOnException()</code> is accepted with no effect</li>
+<li><code>signal.onabort</code> is accepted but never invoked</li>
+<li><code>console.debug</code>/<code>trace</code>/<code>group</code>/<code>table</code> do
+nothing</li>
+<li>a compatibility flag celld does not model is accepted without effect (and is absent
+from <code>Cloudflare.compatibilityFlags</code> rather than reported as enabled)</li>
+</ul>
 </div>
 
 <h2 id="config"><a class="anchor" href="#config">Wrangler configuration</a></h2>
@@ -187,16 +203,19 @@ assets navigation behavior. An unmodeled flag is accepted without effect and rep
 absent from <code>Cloudflare.compatibilityFlags</code>.
 </p>
 
-<h2 id="shims"><a class="anchor" href="#shims">Platform shims: thin and honest</a></h2>
-<p>The platform ships no fake bindings. Where a gap has a sound answer, it is a documented
-pattern, not an emulation:</p>
+<h2 id="shims"><a class="anchor" href="#shims">Working around the gaps</a></h2>
+<p>Neither celld nor the operator ships emulated bindings: a missing service stays
+missing rather than becoming a fake that behaves differently under load. Today the gaps
+are closed in application code, not by the platform:</p>
 <ul>
-<li><strong>Cron</strong>: a platform-provided scheduler cell fires Durable Object alarms
-on a schedule. DO alarms are first-class upstream; celld declines cron triggers because it
-has its own durable alarms.</li>
-<li><strong>Blob storage</strong>: a documented pattern with scoped credentials for real
-S3/R2 over <code>fetch</code>, rather than a pretend R2 binding.</li>
-<li><strong>D1</strong>: adopt upstream when it lands; the platform does not front-run
+<li><strong>Scheduled work</strong>: use Durable Object alarms, which are first-class in
+celld — a cell can reschedule itself after each run. celld declines cron triggers for
+exactly this reason. There is no operator-provided scheduler.</li>
+<li><strong>Blob storage</strong>: call S3, R2, or GCS over <code>fetch</code> with
+credentials you supply through <code>spec.vars</code>. A declared
+<code>r2_buckets</code> binding loads but every method throws, so reach for the HTTP API
+instead.</li>
+<li><strong>D1</strong>: adopt it when it lands upstream; neither project front-runs
 it.</li>
 </ul>
 

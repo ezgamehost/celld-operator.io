@@ -146,24 +146,43 @@ next read.</li>
 <p>
 How celld uses them: each cell has one ownership record naming the owner node and a
 fencing <em>epoch</em>. Acquiring a cell is a conditional write, so the store accepts
-exactly one winner. The replication stream itself uses plain writes (the epoch in the
-key is the fence), and the acknowledgement path re-reads the ownership record before
-answering the client, so a paused process or skewed clock cannot fake ownership. A node
-that cannot reach the bucket cannot renew its lease, stops writing, and releases its
-residency: node failure is a normal input, not a recovery procedure.
+exactly one winner. The replication stream itself uses plain writes — the epoch in the
+key is the fence, so a fenced node's writes land in a superseded prefix.
+</p>
+<p>
+Two further mechanisms turn that into the RPO=0 promise. The <strong>acknowledgement
+rule</strong>: a write is held until the replicator proves it reached the bucket, and
+only then does celld re-read the ownership record and acknowledge — and only if the
+record still names this node at this epoch. Because it is a read, not a clock
+comparison, a paused process or skewed clock cannot pass it. The <strong>epoch
+seal</strong>: the first activation to restore from an epoch writes
+<code>e&lt;epoch&gt;.seal.json</code> with a conditional create, fixing the highest
+transaction any later restore of that epoch may read; the first restorer wins, and if
+the seal write fails the activation fails. Without it, a fenced node's post-takeover
+appends could resurface in a later restore. A node that cannot reach the bucket cannot
+renew its lease, stops writing, and releases its residency: node failure is a normal
+input, not a recovery procedure.
 </p>
 
 <h2 id="qualified"><a class="anchor" href="#qualified">Qualified and disqualified stores</a></h2>
 <div class="tbl-wrap"><table>
 <tr><th>Status</th><th>Stores</th></tr>
-<tr><td><span class="status-ok">Qualified</span> (per celld's docs)</td><td>Amazon S3, Cloudflare R2, Google Cloud Storage, Azure Blob Storage, Tigris. celld's release tests run against R2; the AWS S3 path uses the same client and headers.</td></tr>
+<tr><td><span class="status-ok">Qualified</span></td><td>Amazon S3, Cloudflare R2, Tigris (S3 dialect) and Google Cloud Storage. celld's release tests run against R2; the AWS S3 path uses the same client and headers.</td></tr>
 <tr><td><span class="status-bad">Not qualified</span></td><td>MinIO community edition, Backblaze B2, Hetzner Object Storage, DigitalOcean Spaces. celld is <em>not correct</em> on these: two nodes can own one cell.</td></tr>
-<tr><td>Unproven</td><td>Young S3-compatibles (RustFS and similar). Treat as disqualified until you qualify them yourself; as of early 2026, RustFS's conditional-request layer had open correctness issues.</td></tr>
+<tr><td>Unproven</td><td>Young S3-compatible implementations. Treat as disqualified until you qualify them yourself with the checks below — a store may accept the conditional headers without enforcing them, which fails silently.</td></tr>
 </table></div>
 <p>
+celld speaks exactly two dialects — S3 and Google Cloud Storage — so a bucket spec is
+either <code>s3://…</code> or <code>gs://…</code> and nothing else. Stores that expose no
+S3-compatible API (Azure Blob Storage among them) cannot back a fleet, whatever their
+consistency guarantees; the operator's CRD rejects the spec outright.
+</p>
+<p>
 For <code>gs://</code> buckets, celld uses the Cloud Storage XML API with generation
-preconditions and Application Default Credentials; it rejects an S3
-<code>--endpoint</code> for a <code>gs://</code> bucket.
+preconditions and Application Default Credentials. It rejects an S3
+<code>--endpoint</code> for a <code>gs://</code> bucket, rejects S3 static credentials
+for one (so <code>credentialsFrom.secretRef</code> is a startup failure, not a
+fallback), and ignores the storage region.
 </p>
 
 <h2 id="qualification"><a class="anchor" href="#qualification">Qualifying a store yourself</a></h2>
@@ -171,17 +190,29 @@ preconditions and Application Default Credentials; it rejects an S3
 Before trusting any store not on the qualified list, and again after every store
 upgrade, run both checks:
 </p>
-<pre class="code"><code><span class="c"># 1. celld's own sequential CAS contract test (from the celld repo):</span>
+<pre class="code"><code><span class="c"># 1. celld's own sequential CAS contract test (from the celld repo).</span>
+<span class="c">#    S3-compatible store:</span>
 <span class="p">$</span> CELLD_CAS_LIVE=1 CELLD_CAS_BUCKET=&lt;bucket&gt; CELLD_CAS_ENDPOINT=&lt;url&gt; \
     cargo test -p celld put_cas_contract -- --nocapture
+<span class="c">#    GCS (no endpoint — celld rejects one for gs://):</span>
+<span class="p">$</span> CELLD_CAS_LIVE=1 CELLD_CAS_BUCKET=gs://&lt;bucket&gt; \
+    cargo test -p celld put_cas_contract -- --nocapture
 
-<span class="c"># 2. The operator repo's concurrency hammer (N racers, exactly one winner per round):</span>
+<span class="c"># 2. The operator repo's concurrency hammer (N racers, exactly one winner</span>
+<span class="c">#    per round). S3 dialect only:</span>
 <span class="p">$</span> go run ./hack/cas-hammer --bucket &lt;bucket&gt; --endpoint &lt;url&gt; \
     --writers 8 --rounds 32</code></pre>
 <p>
 The sequential test proves the condition is applied at all; only the hammer probes
-atomicity under race. <strong>Exit 1 from the hammer means the store cannot fence celld
-cells. Do not run a fleet on it.</strong>
+atomicity under race. The hammer speaks the S3 dialect, so a <code>gs://</code> bucket
+gets the contract test alone.
+</p>
+<p>
+<strong>Read both failing exit codes as disqualifying.</strong> Exit 1 means a round
+admitted more than one winner — the store cannot fence celld cells. Exit 2 means the run
+could not complete, and one cause is a conditional PUT answering with something other
+than a precondition failure, which is equally a store that does not speak the protocol
+celld depends on. Only exit 0 qualifies.
 </p>
 
 <h2 id="topology"><a class="anchor" href="#topology">Placement and failure domains</a></h2>

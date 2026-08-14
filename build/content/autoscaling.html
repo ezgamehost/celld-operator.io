@@ -16,7 +16,7 @@ sees as Prometheus metrics, per WorkerApp and per pod, on the leader every
 <tr><th>Metric</th><th>Meaning</th></tr>
 <tr><td><code>celld_resident_cells</code></td><td>Occupied (resident) cells per pod.</td></tr>
 <tr><td><code>celld_resident_cell_utilization</code></td><td>occupied / <code>maxResidentCells</code> (0..1), the primary scale signal.</td></tr>
-<tr><td><code>celld_restoring</code></td><td>Cold activations in flight, a churn signal that holds scaling rather than triggering it.</td></tr>
+<tr><td><code>celld_restoring</code></td><td>Cold activations in flight, cold activations in flight; a health signal, and the rollout controller's step gate — not an autoscaling input.</td></tr>
 <tr><td><code>celld_evicting</code></td><td>Cells being evicted.</td></tr>
 <tr><td><code>celld_shedding</code></td><td>1 while pressure-shedding; the hard out-of-capacity signal.</td></tr>
 <tr><td><code>celld_state_up</code></td><td>1 if <code>/state</code> answered the last poll.</td></tr>
@@ -39,11 +39,11 @@ traffic-bound, stateless-Worker-heavy apps scale even at low cell counts.</li>
 </ul>
 <pre class="code"><code><span class="k">autoscaling:</span>
   <span class="k">enabled:</span> <span class="n">true</span>
-  <span class="k">minReplicas:</span> <span class="n">3</span>     <span class="c"># keep ≥ 2 for HA; also the PDB floor</span>
+  <span class="k">minReplicas:</span> <span class="n">3</span>     <span class="c"># keep ≥ 2 for HA</span>
   <span class="k">maxReplicas:</span> <span class="n">10</span>    <span class="c"># the tenant's cost ceiling</span>
   <span class="k">targets:</span>
     <span class="k">residentCellUtilization:</span> <span class="n">70</span>
-    <span class="k">p95LatencyMs:</span> <span class="n">250</span>  <span class="c"># optional gateway-side signal</span></code></pre>
+    <span class="k">p95LatencyMs:</span> <span class="n">250</span>  <span class="c"># optional; needs Istio telemetry</span></code></pre>
 
 <h2 id="policy"><a class="anchor" href="#policy">celld-aware policy, encoded</a></h2>
 <p>These behaviors are set by the operator rather than left to tuning:</p>
@@ -55,20 +55,33 @@ fast-path: by the time shedding starts, the fleet is already rebalancing the har
 <li><strong>Scale down slowly, and never during churn.</strong> Removing a pod is a
 graceful drain, but it hands that node's cells to peers (cold restores) and closes its
 WebSockets (clients reconnect). Default: one pod per 5 minutes after a long stabilization
-window (30 minutes for <code>websockets: true</code> fleets).</li>
-<li><strong>Autoscaling and rollouts never fight.</strong> While the phase is
-<code>RollingOut</code> or <code>Recreating</code>, the operator pauses the ScaledObject
+window — 10 minutes normally, 30 for <code>websockets: true</code> fleets.</li>
+<li><strong>Autoscaling and rollouts never fight.</strong> Whenever the phase is not
+<code>Ready</code> — <code>RollingOut</code>, <code>Recreating</code>, but also
+<code>Pending</code> and <code>Degraded</code> — the operator pauses the ScaledObject
 (KEDA pause annotation) and pins replicas; the partition arithmetic assumes a stable
-count. Scaling resumes when the fleet reports <code>restoring=0</code>.</li>
+count. Scaling resumes when the fleet is <code>Ready</code> again, which means the
+StatefulSet reports fully updated and ready. A fleet parked in <code>Degraded</code>
+therefore has autoscaling pinned until you resolve it.</li>
 </ul>
 
 <h2 id="requirements"><a class="anchor" href="#requirements">Requirements and degradation</a></h2>
 <p>
 Autoscaling needs <a href="https://keda.sh" rel="external">KEDA</a> installed and a
-Prometheus scraping the operator. When KEDA is absent, <code>spec.autoscaling</code> has
-no effect and the WorkerApp reports <code>AutoscalingReady: False</code>; the fleet
-runs at <code>spec.replicas</code>.
+Prometheus scraping the operator. When the KEDA CRDs are absent the WorkerApp reports
+<code>AutoscalingReady: False</code> with reason <code>KEDAUnavailable</code> and
+<code>spec.autoscaling</code> has no effect. (A missing or unreachable
+<em>Prometheus</em> is not detected: KEDA owns that failure, and the condition stays
+True.)
 </p>
+<div class="warn">
+<p><strong>Enabling autoscaling hands replica count to KEDA permanently.</strong> Once
+<code>spec.autoscaling.enabled</code> is true the operator stops reconciling replicas
+altogether, so later edits to <code>spec.replicas</code> are ignored — and if KEDA is
+absent the fleet simply stays at whatever count it already had. Set the floor and ceiling
+with <code>minReplicas</code>/<code>maxReplicas</code>, and to hand control back, disable
+autoscaling first.</p>
+</div>
 <div class="note">
 <p><strong>Sizing rule of thumb</strong> (upstream): ~1,000 resident cells per 8&nbsp;GiB
 node. Set <code>resources.maxResidentCells</code> and <code>resources.memoryGi</code>

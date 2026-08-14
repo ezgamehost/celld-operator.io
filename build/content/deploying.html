@@ -1,0 +1,115 @@
+<h1>Deploying updates</h1>
+<p class="lead">
+celld nodes load their application deployment from the bucket <strong>at startup
+only</strong> — publishing a new version serves nothing until the fleet restarts. Every
+deploy is therefore two steps: publish to the bucket, then roll the fleet. The operator
+owns the second step and makes it safe.
+</p>
+
+<h2 id="pinned"><a class="anchor" href="#pinned">Pinned mode: appVersion in git</a></h2>
+<pre class="code"><code><span class="p">$</span> celld deploy . --bucket s3://platform-cells/apps/chat …    <span class="c"># 1. publish</span>
+<span class="p">$</span> kubectl patch workerapp chat -n tenant-acme --type merge \
+    -p <span class="s">'{"spec":{"appVersion":"sha-def456"}}'</span>                 <span class="c"># 2. roll</span></code></pre>
+<p>
+Or bump <code>appVersion</code> in git and let your GitOps tool apply it. The version
+string names a deployment in the fleet bucket, written there by <code>celld deploy</code>.
+</p>
+<p>
+In pinned mode the operator still reads the bucket's <code>deploy/current.json</code>
+pointer and raises a <code>DeployTrackingReady: VersionMismatch</code> warning when the
+bucket and the resource disagree — nodes always load the bucket's version, so drift is
+surfaced, never silent.
+</p>
+
+<h2 id="auto"><a class="anchor" href="#auto">Auto mode: follow the bucket</a></h2>
+<p>
+Prefer <code>celld deploy</code> to be the whole story? Set
+<code>appVersion: auto</code> and the operator follows the bucket's
+<code>deploy/current.json</code> itself. A new publish rolls the fleet within one
+poll interval (<code>--deploy-poll-interval</code>, default 60s), with no resource edit,
+and <code>status.rolledOutAppVersion</code> reports the concrete version being served.
+</p>
+<p>
+Tracking reads use the fleet's <code>secretRef</code> credentials when set, or the
+operator's ambient AWS identity otherwise.
+</p>
+
+<h2 id="gated"><a class="anchor" href="#gated">The gated rollout</a></h2>
+<p>
+Vanilla StatefulSet rolling updates gate each step on the <em>new pod's</em> readiness.
+celld's documented rule is different: after restarting a node, wait until <em>every</em>
+node reports <code>restoring=0</code> before restarting the next — and that restore work
+lands on the <strong>peers</strong> that absorbed the drained node's cells, which a stock
+rolling update cannot see. Running ahead of the fleet's real recovery is not a data-loss
+risk (the bucket is authoritative, RPO=0), but it is a cold-start latency storm: warm
+capacity leaves faster than the fleet re-warms.
+</p>
+<p>The operator implements the documented procedure with the StatefulSet partition:</p>
+<pre class="code"><code><span class="c">on template change (appVersion, image, or secret rotation):</span>
+  partition ← replicas                    <span class="c"># freeze: no pod updates yet</span>
+  for ordinal in (replicas−1) … 0:
+    partition ← ordinal                   <span class="c"># release exactly one pod</span>
+    wait: pod[ordinal] runs the new revision and is Ready
+    wait: every fleet pod reports /state restoring == 0
+  partition ← 0; status.rolledOutAppVersion ← appVersion</code></pre>
+<p>
+If any wait exceeds its budget, the rollout holds its partition, the phase turns
+<code>Degraded</code>, and a condition names the gate — the operator never proceeds past
+a churning fleet. Progress is visible at any moment in
+<code>status.rollout.waitingOn</code> (for example <code>celld-2: Ready</code> or
+<code>fleet: restoring=3</code>).
+</p>
+<p>
+During any rollout the autoscaler is paused and replicas are pinned, so KEDA and the
+partition controller never fight over replica count. Drain 503s are retried at the
+gateway, making rollouts invisible to clients — see
+<a href="/docs/networking/#drains">Networking &amp; ingress</a>.
+</p>
+
+<h2 id="celld-upgrades"><a class="anchor" href="#celld-upgrades">celld version upgrades</a></h2>
+<p>
+Bumping <code>spec.celld.image</code> rolls the fleet the same gated way — except across
+boundaries upstream flags as <strong>not rolling-safe</strong>. celld v0.1.0 → v0.2.0 was
+one: advertise records and block-object formats changed, and mixed fleets are forbidden.
+</p>
+<p>
+The operator maintains a version-compatibility table from celld release notes and
+<strong>refuses</strong> a Rolling strategy across a flagged boundary with
+<code>phase: Degraded</code> — a GitOps diff alone can never create a mixed fleet. To
+cross the boundary, the resource must explicitly set:
+</p>
+<pre class="code"><code><span class="k">celld:</span>
+  <span class="k">image:</span> <span class="s">ghcr.io/denoland/celld:v0.2.0</span>
+  <span class="k">updateStrategy:</span> <span class="s">Recreate</span></code></pre>
+<p>
+Recreate scales the fleet to zero, waits for every node to drain, then starts the new
+version. That is an availability event <em>by design</em>; the resource has to ask for
+it, and status surfaces it as <code>phase: Recreating</code>.
+</p>
+<div class="warn">
+<p>celld ships security fixes for its <strong>latest release only</strong> — plan to
+track head, and keep the operator current alongside (the internal <code>/state</code> API
+the operator depends on is explicitly unstable, so operator and celld versions are
+qualified as pairs).</p>
+</div>
+
+<h2 id="secrets"><a class="anchor" href="#secrets">Rotating variables and secrets</a></h2>
+<p>
+Worker vars come from a Kubernetes Secret (key <code>vars.env</code>,
+<code>NAME=value</code> lines) mounted and passed via <code>CELLD_VARS_FILE</code>. The
+operator digests every referenced Secret into a pod-template annotation, so a rotation
+changes the template and rolls the fleet through the same gated rollout. Values are never
+baked into bundles.
+</p>
+
+<h2 id="ci"><a class="anchor" href="#ci">CI validation</a></h2>
+<p>The recommended pipeline:</p>
+<ol>
+<li><strong>Pull request:</strong> pinned esbuild + <code>celld deploy . --dry-run</code>.
+Unsupported <a href="/docs/compatibility/#config">config keys</a> fail here with a clean
+named-key error — never at runtime.</li>
+<li><strong>Merge:</strong> <code>celld deploy .</code> against the fleet's bucket prefix.
+The bucket now holds the new deployment; nothing is serving it yet.</li>
+<li><strong>Roll out:</strong> bump <code>spec.appVersion</code> (GitOps), or let
+<code>appVersion: auto</code> pick it up.</li>
+</ol>

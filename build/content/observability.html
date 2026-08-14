@@ -1,0 +1,81 @@
+<h1>Observability</h1>
+<p class="lead">
+Two planes, both per-tenant by construction: celld's built-in tracing (spans and logs,
+written to the tenant's own bucket prefix or your OTLP collector) and the operator's
+Prometheus metrics (capacity and health, derived from each pod's <code>/state</code>).
+</p>
+
+<h2 id="telemetry"><a class="anchor" href="#telemetry">Traces and logs</a></h2>
+<p>One field enables celld's telemetry for the fleet:</p>
+<pre class="code"><code><span class="k">telemetry:</span>
+  <span class="k">enabled:</span> <span class="n">true</span>       <span class="c"># sets CELLD_OTEL=1 (the WorkerApp default)</span>
+  <span class="k">retention:</span> <span class="s">30d</span>      <span class="c"># bucket sink only; "none" defers to bucket lifecycle rules</span>
+  <span class="c"># sink: otlp        # or send OTLP/HTTP to a collector instead:</span>
+  <span class="c"># otlpEndpoint: http://otel-collector.monitoring.svc:4318</span></code></pre>
+<div class="tbl-wrap"><table>
+<tr><th>Sink</th><th>Behavior</th></tr>
+<tr><td><code>bucket</code> (default)</td><td>Parquet traces and logs under the fleet bucket's <code>telemetry/</code> prefix, partitioned by node and hour. DuckDB queries them directly — no services to run. celld deletes files older than <code>retention</code>.</td></tr>
+<tr><td><code>otlp</code></td><td>OTLP/HTTP protobuf to the collector at <code>otlpEndpoint</code> (sets <code>OTEL_EXPORTER_OTLP_ENDPOINT</code>). Setting <code>otlpEndpoint</code> without a sink selects <code>otlp</code> automatically.</td></tr>
+</table></div>
+<p>What celld emits:</p>
+<ul>
+<li>A span per stateless-Worker request, per cell event (fetch, alarm, RPC, WebSocket
+message), per outbound <code>fetch()</code>, and per cell start — with queue waits and
+durability facts.</li>
+<li>Every <code>console.log</code> line as a log record carrying the trace and span ID of
+the handler that wrote it; the correlation survives <code>await</code>.</li>
+<li>W3C <code>traceparent</code> read on incoming requests and sent on outbound fetches —
+so your gateway's OpenTelemetry tracing joins edge spans to Worker and Durable Object
+spans with zero app code.</li>
+</ul>
+<div class="note">
+<p>Under load, telemetry sheds before requests do — and celld counts what it sheds. The
+trace schema is <code>v0-unstable</code>; column names can change before a stable
+release.</p>
+</div>
+
+<h3 id="duckdb"><a class="anchor" href="#duckdb">Querying the bucket sink</a></h3>
+<pre class="code"><code>INSTALL httpfs; LOAD httpfs;
+CREATE SECRET r2 (TYPE s3, KEY_ID '…', SECRET '…',
+                  ENDPOINT 'ACCOUNT.r2.cloudflarestorage.com', URL_STYLE 'path');
+SELECT name, count(*), avg(duration_us)/1000 AS avg_ms
+FROM 's3://platform-cells/apps/chat/telemetry/traces/*/*/*/*/*/*.parquet'
+GROUP BY name ORDER BY 2 DESC;</code></pre>
+<p>
+For near-live queries, lower <code>CELLD_OTEL_FLUSH_MS</code> — but run the hourly
+compaction job first (a DuckDB <code>COPY</code> that rewrites one past hour of small
+files into one zstd Parquet, on a maintenance node — celld does not compact its own
+files), or queries grow slow within hours.
+</p>
+
+<h2 id="metrics"><a class="anchor" href="#metrics">Fleet metrics</a></h2>
+<p>
+celld has no metrics endpoint yet, so the operator polls each pod's internal
+<code>/state</code> (leader-only, every <code>--state-poll-interval</code>, default 15s)
+and exports Prometheus series per WorkerApp and per pod:
+</p>
+<div class="tbl-wrap"><table>
+<tr><th>Metric</th><th>Meaning</th></tr>
+<tr><td><code>celld_resident_cells</code></td><td>Occupied (resident) cells per pod</td></tr>
+<tr><td><code>celld_resident_cell_utilization</code></td><td>occupied / maxResidentCells (0..1) — the primary capacity signal</td></tr>
+<tr><td><code>celld_restoring</code></td><td>Cold activations in flight</td></tr>
+<tr><td><code>celld_evicting</code></td><td>Cells being evicted</td></tr>
+<tr><td><code>celld_shedding</code></td><td>1 while pressure-shedding — hard out-of-capacity</td></tr>
+<tr><td><code>celld_state_up</code></td><td>1 if <code>/state</code> answered the last poll</td></tr>
+</table></div>
+<p>
+The same series drive <a href="/docs/autoscaling/">autoscaling</a>, dashboards, and
+alerting. Request rates and latencies are derived from spans (or from your gateway's
+metrics) until upstream ships a native metrics signal.
+</p>
+
+<h2 id="status"><a class="anchor" href="#status">At-a-glance status</a></h2>
+<pre class="code"><code><span class="p">$</span> kubectl get workerapps -A
+NAMESPACE     NAME    PHASE        APP          READY   RESTORING
+tenant-acme   chat    Ready        sha-def456   3       0
+tenant-beta   docs    RollingOut   sha-11aa22   2       1</code></pre>
+<p>
+<code>PHASE</code>, the rolled-out version, ready pods, and fleet-wide restoring count are
+printer columns on the CRD; conditions carry the detail. See the
+<a href="/docs/workerapp/#status">WorkerApp status reference</a>.
+</p>

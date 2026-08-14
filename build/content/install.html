@@ -1,0 +1,78 @@
+<h1>Installation</h1>
+<p class="lead">
+Install celld-operator with Helm (recommended) or kustomize. The operator runs in its own
+namespace and watches <code>WorkerApp</code> resources cluster-wide.
+</p>
+
+<h2 id="prerequisites"><a class="anchor" href="#prerequisites">Prerequisites</a></h2>
+<ul>
+<li><strong>Kubernetes 1.30+</strong> and cluster-admin access to install CRDs.</li>
+<li><strong>A qualified object store.</strong> celld's ownership fencing requires atomically
+enforced conditional writes (<code>If-None-Match: *</code>, <code>If-Match</code>) and
+read-after-write consistency. Qualified: Amazon S3, Cloudflare R2, Google Cloud Storage,
+Azure Blob, Tigris. <em>Not</em> qualified: MinIO community edition, Backblaze B2,
+DigitalOcean Spaces, Hetzner. For anything else, run
+<a href="/docs/object-stores/#qualification">store qualification</a> first — an unenforced
+condition silently splits cell ownership.</li>
+</ul>
+
+<h3 id="optional"><a class="anchor" href="#optional">Optional integrations</a></h3>
+<p>Each of these is optional and degrades gracefully to a status condition when absent:</p>
+<div class="tbl-wrap"><table>
+<tr><th>Integration</th><th>What it enables</th><th>Condition when absent</th></tr>
+<tr><td><a href="https://gateway-api.sigs.k8s.io/" rel="external">Gateway API</a> CRDs + an implementation (Istio recommended)</td><td>Hostname ingress via HTTPRoutes on a shared Gateway</td><td><code>IngressReady</code> — hostnames are not routed</td></tr>
+<tr><td><a href="https://istio.io/" rel="external">Istio</a> (ambient mode recommended)</td><td>AuthorizationPolicies on the internal listener, mTLS for the peer network</td><td><code>MeshPolicyReady</code> — NetworkPolicy alone guards <code>:8081</code></td></tr>
+<tr><td><a href="https://keda.sh/" rel="external">KEDA</a> + Prometheus (scraping the operator)</td><td>Custom-metrics autoscaling</td><td><code>AutoscalingReady</code> — <code>spec.autoscaling</code> has no effect</td></tr>
+</table></div>
+<div class="note">
+<p>Ambient mode specifically, not sidecars: celld makes outbound peer and bucket calls
+<em>during termination</em>, and a sidecar exiting first would break the cell handoff.
+Ambient encrypts the peer network without putting a proxy in celld's drain path.</p>
+</div>
+
+<h2 id="helm"><a class="anchor" href="#helm">Install with Helm</a></h2>
+<p>The chart is published to GHCR as an OCI artifact on every release:</p>
+<pre class="code"><code><span class="p">$</span> helm install celld-operator oci://ghcr.io/ezgamehost/charts/celld-operator \
+    --namespace celld-operator-system --create-namespace \
+    --set operator.ingressMode=httproute   <span class="c"># or virtualservice / ingress / none</span></code></pre>
+<p>
+Every operator flag is a Helm value — <code>operator.ingressMode</code>,
+<code>operator.gatewayName</code>, <code>operator.istioGateways</code>,
+<code>operator.ingressClass</code>, <code>operator.clusterIssuer</code>,
+<code>operator.prometheusURL</code>, <code>operator.deployPollInterval</code>, and friends.
+See the <a href="/docs/operator-configuration/">operator configuration reference</a> for
+all of them. The chart's default image tag is its <code>appVersion</code>, pinned at
+package time to the operator build it was released with.
+</p>
+
+<h2 id="kustomize"><a class="anchor" href="#kustomize">Install with kustomize</a></h2>
+<p>From a clone of the <a href="https://github.com/ezgamehost/celld-operator" rel="external">repository</a>:</p>
+<pre class="code"><code><span class="p">$</span> make install                        <span class="c"># CRDs only</span>
+<span class="p">$</span> make docker-build docker-push IMG=&lt;registry&gt;/celld-operator:tag
+<span class="p">$</span> make deploy IMG=&lt;registry&gt;/celld-operator:tag</code></pre>
+
+<h2 id="local"><a class="anchor" href="#local">Run locally during development</a></h2>
+<p>The operator can run outside the cluster against your current kubeconfig:</p>
+<pre class="code"><code><span class="p">$</span> make run</code></pre>
+
+<h2 id="verify"><a class="anchor" href="#verify">Verify the installation</a></h2>
+<pre class="code"><code><span class="p">$</span> kubectl get pods -n celld-operator-system
+NAME                                                  READY   STATUS    RESTARTS
+celld-operator-controller-manager-7d9c6bf9c9-x2m4p    1/1     Running   0
+
+<span class="p">$</span> kubectl get crd workerapps.platform.ezghcloud.com
+NAME                                  CREATED AT
+workerapps.platform.ezghcloud.com     2026-08-14T00:00:00Z</code></pre>
+<p>
+With the operator running, continue to the <a href="/docs/quick-start/">quick start</a>
+to deploy your first WorkerApp.
+</p>
+
+<h2 id="upgrades"><a class="anchor" href="#upgrades">Upgrading the operator</a></h2>
+<p>
+Upgrade with <code>helm upgrade</code> using the new chart version. The operator
+version-pins its expectations of celld's alpha operator API, so keep the operator current
+as you track new celld releases — celld ships security fixes for its latest release only,
+and the <a href="/docs/deploying/#celld-upgrades">compatibility table</a> gates fleet
+upgrades across breaking boundaries.
+</p>

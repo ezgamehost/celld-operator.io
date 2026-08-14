@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install celld-operator on Kubernetes — celld-operator</title>
+<meta name="description" content="Install the celld-operator with Helm or kustomize: prerequisites, optional integrations (Gateway API, Istio, KEDA), and how to verify the installation.">
+<link rel="canonical" href="https://celld-operator.io/docs/install/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="celld-operator">
+<meta property="og:title" content="Install celld-operator on Kubernetes">
+<meta property="og:description" content="Install the celld-operator with Helm or kustomize: prerequisites, optional integrations (Gateway API, Istio, KEDA), and how to verify the installation.">
+<meta property="og:url" content="https://celld-operator.io/docs/install/">
+<meta property="og:image" content="https://celld-operator.io/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Install celld-operator on Kubernetes">
+<meta name="twitter:description" content="Install the celld-operator with Helm or kustomize: prerequisites, optional integrations (Gateway API, Istio, KEDA), and how to verify the installation.">
+<meta name="twitter:image" content="https://celld-operator.io/assets/og.png">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "Install celld-operator on Kubernetes",
+ "description": "Install the celld-operator with Helm or kustomize: prerequisites, optional integrations (Gateway API, Istio, KEDA), and how to verify the installation.",
+ "url": "https://celld-operator.io/docs/install/",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "celld-operator",
+  "url": "https://celld-operator.io/"
+ },
+ "about": {
+  "@type": "SoftwareApplication",
+  "name": "celld-operator",
+  "operatingSystem": "Kubernetes 1.30+",
+  "applicationCategory": "DeveloperApplication"
+ }
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "BreadcrumbList",
+ "itemListElement": [
+  {
+   "@type": "ListItem",
+   "position": 1,
+   "name": "Home",
+   "item": "https://celld-operator.io/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 2,
+   "name": "Docs",
+   "item": "https://celld-operator.io/docs/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 3,
+   "name": "Installation",
+   "item": "https://celld-operator.io/docs/install/"
+  }
+ ]
+}
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-head">
+  <div class="container">
+    <a class="brand" href="/">
+      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+      celld-operator
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="/docs/">Docs</a>
+      <a href="/docs/compatibility/">Compatibility</a>
+      <a href="https://celld.dev" rel="external">celld.dev</a>
+      <a class="gh" href="https://github.com/ezgamehost/celld-operator" rel="external">
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </nav>
+  </div>
+</header>
+
+<div class="container docs-wrap">
+<nav class="docs-nav" aria-label="Documentation">
+<details open>
+<summary>Documentation menu</summary>
+<div class="docs-nav-inner">
+<h4>Getting started</h4>
+<ul>
+<li><a href="/docs/">Introduction</a></li>
+<li><a href="/docs/install/" aria-current="page">Installation</a></li>
+<li><a href="/docs/quick-start/">Quick start</a></li>
+</ul>
+<h4>Concepts</h4>
+<ul>
+<li><a href="/docs/architecture/">Architecture</a></li>
+<li><a href="/docs/object-stores/">Object stores</a></li>
+<li><a href="/docs/compatibility/">Cloudflare compatibility</a></li>
+</ul>
+<h4>Guides</h4>
+<ul>
+<li><a href="/docs/deploying/">Deploying updates</a></li>
+<li><a href="/docs/autoscaling/">Autoscaling</a></li>
+<li><a href="/docs/networking/">Networking &amp; ingress</a></li>
+<li><a href="/docs/security/">Security</a></li>
+<li><a href="/docs/observability/">Observability</a></li>
+</ul>
+<h4>Reference</h4>
+<ul>
+<li><a href="/docs/workerapp/">WorkerApp reference</a></li>
+<li><a href="/docs/operator-configuration/">Operator configuration</a></li>
+</ul>
+</div>
+</details>
+<script>if(matchMedia("(max-width: 56rem)").matches)document.currentScript.parentElement.querySelector("details").removeAttribute("open")</script>
+</nav>
+<main class="docs-main" id="main">
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a> &rsaquo; <a href="/docs/">Docs</a> &rsaquo; <span>Installation</span></nav>
+<h1>Installation</h1>
+<p class="lead">
+Install celld-operator with Helm (recommended) or kustomize. The operator runs in its own
+namespace and watches <code>WorkerApp</code> resources cluster-wide.
+</p>
+
+<h2 id="prerequisites"><a class="anchor" href="#prerequisites">Prerequisites</a></h2>
+<ul>
+<li><strong>Kubernetes 1.30+</strong> and cluster-admin access to install CRDs.</li>
+<li><strong>A qualified object store.</strong> celld's ownership fencing requires atomically
+enforced conditional writes (<code>If-None-Match: *</code>, <code>If-Match</code>) and
+read-after-write consistency. Qualified: Amazon S3, Cloudflare R2, Google Cloud Storage,
+Azure Blob, Tigris. <em>Not</em> qualified: MinIO community edition, Backblaze B2,
+DigitalOcean Spaces, Hetzner. For anything else, run
+<a href="/docs/object-stores/#qualification">store qualification</a> first — an unenforced
+condition silently splits cell ownership.</li>
+</ul>
+
+<h3 id="optional"><a class="anchor" href="#optional">Optional integrations</a></h3>
+<p>Each of these is optional and degrades gracefully to a status condition when absent:</p>
+<div class="tbl-wrap"><table>
+<tr><th>Integration</th><th>What it enables</th><th>Condition when absent</th></tr>
+<tr><td><a href="https://gateway-api.sigs.k8s.io/" rel="external">Gateway API</a> CRDs + an implementation (Istio recommended)</td><td>Hostname ingress via HTTPRoutes on a shared Gateway</td><td><code>IngressReady</code> — hostnames are not routed</td></tr>
+<tr><td><a href="https://istio.io/" rel="external">Istio</a> (ambient mode recommended)</td><td>AuthorizationPolicies on the internal listener, mTLS for the peer network</td><td><code>MeshPolicyReady</code> — NetworkPolicy alone guards <code>:8081</code></td></tr>
+<tr><td><a href="https://keda.sh/" rel="external">KEDA</a> + Prometheus (scraping the operator)</td><td>Custom-metrics autoscaling</td><td><code>AutoscalingReady</code> — <code>spec.autoscaling</code> has no effect</td></tr>
+</table></div>
+<div class="note">
+<p>Ambient mode specifically, not sidecars: celld makes outbound peer and bucket calls
+<em>during termination</em>, and a sidecar exiting first would break the cell handoff.
+Ambient encrypts the peer network without putting a proxy in celld's drain path.</p>
+</div>
+
+<h2 id="helm"><a class="anchor" href="#helm">Install with Helm</a></h2>
+<p>The chart is published to GHCR as an OCI artifact on every release:</p>
+<pre class="code"><code><span class="p">$</span> helm install celld-operator oci://ghcr.io/ezgamehost/charts/celld-operator \
+    --namespace celld-operator-system --create-namespace \
+    --set operator.ingressMode=httproute   <span class="c"># or virtualservice / ingress / none</span></code></pre>
+<p>
+Every operator flag is a Helm value — <code>operator.ingressMode</code>,
+<code>operator.gatewayName</code>, <code>operator.istioGateways</code>,
+<code>operator.ingressClass</code>, <code>operator.clusterIssuer</code>,
+<code>operator.prometheusURL</code>, <code>operator.deployPollInterval</code>, and friends.
+See the <a href="/docs/operator-configuration/">operator configuration reference</a> for
+all of them. The chart's default image tag is its <code>appVersion</code>, pinned at
+package time to the operator build it was released with.
+</p>
+
+<h2 id="kustomize"><a class="anchor" href="#kustomize">Install with kustomize</a></h2>
+<p>From a clone of the <a href="https://github.com/ezgamehost/celld-operator" rel="external">repository</a>:</p>
+<pre class="code"><code><span class="p">$</span> make install                        <span class="c"># CRDs only</span>
+<span class="p">$</span> make docker-build docker-push IMG=&lt;registry&gt;/celld-operator:tag
+<span class="p">$</span> make deploy IMG=&lt;registry&gt;/celld-operator:tag</code></pre>
+
+<h2 id="local"><a class="anchor" href="#local">Run locally during development</a></h2>
+<p>The operator can run outside the cluster against your current kubeconfig:</p>
+<pre class="code"><code><span class="p">$</span> make run</code></pre>
+
+<h2 id="verify"><a class="anchor" href="#verify">Verify the installation</a></h2>
+<pre class="code"><code><span class="p">$</span> kubectl get pods -n celld-operator-system
+NAME                                                  READY   STATUS    RESTARTS
+celld-operator-controller-manager-7d9c6bf9c9-x2m4p    1/1     Running   0
+
+<span class="p">$</span> kubectl get crd workerapps.platform.ezghcloud.com
+NAME                                  CREATED AT
+workerapps.platform.ezghcloud.com     2026-08-14T00:00:00Z</code></pre>
+<p>
+With the operator running, continue to the <a href="/docs/quick-start/">quick start</a>
+to deploy your first WorkerApp.
+</p>
+
+<h2 id="upgrades"><a class="anchor" href="#upgrades">Upgrading the operator</a></h2>
+<p>
+Upgrade with <code>helm upgrade</code> using the new chart version. The operator
+version-pins its expectations of celld's alpha operator API, so keep the operator current
+as you track new celld releases — celld ships security fixes for its latest release only,
+and the <a href="/docs/deploying/#celld-upgrades">compatibility table</a> gates fleet
+upgrades across breaking boundaries.
+</p>
+
+<nav class="pager" aria-label="Docs pages"><a class="prev" href="/docs/" rel="prev"><span class="dir">&larr; Previous</span>Introduction</a><a class="next" href="/docs/quick-start/" rel="next"><span class="dir">Next &rarr;</span>Quick start</a></nav>
+</main>
+</div>
+
+<footer class="site-foot">
+  <div class="container">
+    <div class="cols">
+      <div>
+        <a class="brand" href="/"><svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+          celld-operator
+        </a>
+        <p style="margin:.6rem 0 0; font-size:.88rem">
+          A Kubernetes control plane for celld: self-hosted Cloudflare Workers and
+          Durable Objects on infrastructure you own.
+        </p>
+      </div>
+      <div>
+        <h4>Documentation</h4>
+        <ul>
+          <li><a href="/docs/">Introduction</a></li>
+          <li><a href="/docs/quick-start/">Quick start</a></li>
+          <li><a href="/docs/workerapp/">WorkerApp reference</a></li>
+          <li><a href="/docs/compatibility/">Cloudflare compatibility</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/ezgamehost/celld-operator" rel="external">GitHub</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/DESIGN.md" rel="external">Design document</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/SECURITY.md" rel="external">Security policy</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/CONTRIBUTING.md" rel="external">Contributing</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Upstream</h4>
+        <ul>
+          <li><a href="https://celld.dev" rel="external">celld.dev</a></li>
+          <li><a href="https://github.com/denoland/celld" rel="external">denoland/celld</a></li>
+          <li><a href="https://celld.dev/docs" rel="external">celld documentation</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="legal">
+      celld-operator is an independent open-source project released under the
+      Apache License 2.0. celld is a project of Deno Land Inc. Cloudflare, Cloudflare
+      Workers, and Durable Objects are trademarks of Cloudflare, Inc. This project is
+      not affiliated with, sponsored by, or endorsed by Deno Land or Cloudflare.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

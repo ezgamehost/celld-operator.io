@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>celld-operator Architecture — celld-operator</title>
+<meta name="description" content="How celld-operator works: fleet-per-app tenancy, the resources reconciled per WorkerApp, the celld facts the design depends on, and the trust boundaries.">
+<link rel="canonical" href="https://celld-operator.io/docs/architecture/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="celld-operator">
+<meta property="og:title" content="celld-operator Architecture">
+<meta property="og:description" content="How celld-operator works: fleet-per-app tenancy, the resources reconciled per WorkerApp, the celld facts the design depends on, and the trust boundaries.">
+<meta property="og:url" content="https://celld-operator.io/docs/architecture/">
+<meta property="og:image" content="https://celld-operator.io/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="celld-operator Architecture">
+<meta name="twitter:description" content="How celld-operator works: fleet-per-app tenancy, the resources reconciled per WorkerApp, the celld facts the design depends on, and the trust boundaries.">
+<meta name="twitter:image" content="https://celld-operator.io/assets/og.png">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "celld-operator Architecture",
+ "description": "How celld-operator works: fleet-per-app tenancy, the resources reconciled per WorkerApp, the celld facts the design depends on, and the trust boundaries.",
+ "url": "https://celld-operator.io/docs/architecture/",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "celld-operator",
+  "url": "https://celld-operator.io/"
+ },
+ "about": {
+  "@type": "SoftwareApplication",
+  "name": "celld-operator",
+  "operatingSystem": "Kubernetes 1.30+",
+  "applicationCategory": "DeveloperApplication"
+ }
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "BreadcrumbList",
+ "itemListElement": [
+  {
+   "@type": "ListItem",
+   "position": 1,
+   "name": "Home",
+   "item": "https://celld-operator.io/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 2,
+   "name": "Docs",
+   "item": "https://celld-operator.io/docs/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 3,
+   "name": "Architecture",
+   "item": "https://celld-operator.io/docs/architecture/"
+  }
+ ]
+}
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-head">
+  <div class="container">
+    <a class="brand" href="/">
+      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+      celld-operator
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="/docs/">Docs</a>
+      <a href="/docs/compatibility/">Compatibility</a>
+      <a href="https://celld.dev" rel="external">celld.dev</a>
+      <a class="gh" href="https://github.com/ezgamehost/celld-operator" rel="external">
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </nav>
+  </div>
+</header>
+
+<div class="container docs-wrap">
+<nav class="docs-nav" aria-label="Documentation">
+<details open>
+<summary>Documentation menu</summary>
+<div class="docs-nav-inner">
+<h4>Getting started</h4>
+<ul>
+<li><a href="/docs/">Introduction</a></li>
+<li><a href="/docs/install/">Installation</a></li>
+<li><a href="/docs/quick-start/">Quick start</a></li>
+</ul>
+<h4>Concepts</h4>
+<ul>
+<li><a href="/docs/architecture/" aria-current="page">Architecture</a></li>
+<li><a href="/docs/object-stores/">Object stores</a></li>
+<li><a href="/docs/compatibility/">Cloudflare compatibility</a></li>
+</ul>
+<h4>Guides</h4>
+<ul>
+<li><a href="/docs/deploying/">Deploying updates</a></li>
+<li><a href="/docs/autoscaling/">Autoscaling</a></li>
+<li><a href="/docs/networking/">Networking &amp; ingress</a></li>
+<li><a href="/docs/security/">Security</a></li>
+<li><a href="/docs/observability/">Observability</a></li>
+</ul>
+<h4>Reference</h4>
+<ul>
+<li><a href="/docs/workerapp/">WorkerApp reference</a></li>
+<li><a href="/docs/operator-configuration/">Operator configuration</a></li>
+</ul>
+</div>
+</details>
+<script>if(matchMedia("(max-width: 56rem)").matches)document.currentScript.parentElement.querySelector("details").removeAttribute("open")</script>
+</nav>
+<main class="docs-main" id="main">
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a> &rsaquo; <a href="/docs/">Docs</a> &rsaquo; <span>Architecture</span></nav>
+<h1>Architecture</h1>
+<p class="lead">
+How one <code>WorkerApp</code> becomes one operated fleet — and why the design looks the
+way it does. The full rationale lives in the repository's
+<a href="https://github.com/ezgamehost/celld-operator/blob/main/DESIGN.md" rel="external">DESIGN.md</a>;
+this page is the working summary.
+</p>
+
+<h2 id="model"><a class="anchor" href="#model">The coordination model</a></h2>
+<p>
+celld nodes coordinate through an object-storage bucket — deployments, per-cell SQLite
+state, ownership leases — with no consensus service, no membership protocol, and no
+failure detector. Object-storage compare-and-swap guarantees exactly one node owns a cell
+at a time, and celld does not acknowledge a write before it is durable in the bucket
+(RPO=0). The bucket is the source of truth; nodes are replaceable.
+</p>
+<p>
+The operator's job is everything around that: turning one <code>WorkerApp</code> into one
+fleet of celld pods sharing a bucket prefix, and encoding celld's operational rules so
+they cannot be misconfigured.
+</p>
+
+<h2 id="components"><a class="anchor" href="#components">Components</a></h2>
+<div class="tbl-wrap"><table>
+<tr><th>Component</th><th>Role</th></tr>
+<tr><td><strong>celld-operator</strong></td><td>Watches <code>WorkerApp</code> resources, reconciles the full per-fleet stack, owns rollout sequencing, exports fleet metrics.</td></tr>
+<tr><td><strong>Deploy pipeline</strong> (your CI)</td><td>Builds Wrangler projects with <code>celld deploy</code> and publishes deployments to the fleet bucket, then bumps <code>appVersion</code> (or lets <code>appVersion: auto</code> pick it up).</td></tr>
+<tr><td><strong>Shared edge</strong></td><td>One platform-owned Gateway (Gateway API); one HTTPRoute per app in the tenant's namespace, attached via ReferenceGrant. TLS via cert-manager.</td></tr>
+<tr><td><strong>Object store</strong></td><td>Externally operated and <a href="/docs/object-stores/">qualified</a>. The operator provisions prefixes and credentials but never runs the store — a cluster incident must not take out compute and the source of truth together.</td></tr>
+</table></div>
+
+<h2 id="tenancy"><a class="anchor" href="#tenancy">Tenancy: fleet-per-app</a></h2>
+<p>
+Each application gets its own fleet — its own StatefulSet, namespace, bucket prefix, and
+credentials. Tenancy lives at the Kubernetes layer, not inside celld.
+</p>
+<p>
+<strong>The isolation argument.</strong> celld adds no sandbox beyond V8, so the design
+assumes the worst case: a V8 isolate escape hands the attacker the whole node process.
+Under fleet-per-app, that node holds only the tenant's own cells, and its bucket
+credential — one IAM role per fleet, locked to <code>…/apps/&lt;app&gt;/</code> and nothing
+else — reaches only the tenant's own prefix. <strong>The blast radius of a full runtime
+compromise is the tenant's own app.</strong> For higher assurance tiers, pin fleets to
+dedicated node pools for kernel-level separation.
+</p>
+<p>
+<strong>The economics.</strong> The unit of tenancy is a fleet — two to three pods minimum
+for HA — not an isolate. Upstream sizing: one 8&nbsp;GB node holds ~1,000 resident cells,
+and inactive cells cost approximately nothing. Fleets can share one physical bucket via
+key prefixes (celld supports <code>s3://BUCKET/PREFIX</code>), keeping store administration
+centralized while IAM scoping keeps authority per-fleet.
+</p>
+
+<h2 id="reconciled"><a class="anchor" href="#reconciled">What gets reconciled per WorkerApp</a></h2>
+<h3 id="statefulset"><a class="anchor" href="#statefulset">StatefulSet</a></h3>
+<p>
+A StatefulSet rather than a Deployment: pods need a stable advertise identity for the
+peer protocol, and stable identity enables the <code>handoff=preserve</code> fast-reload
+optimization later. Details the operator sets:
+</p>
+<ul>
+<li>A headless Service <code>&lt;app&gt;-celld-internal</code>; each pod advertises
+<code>$(POD_NAME).&lt;app&gt;-celld-internal.&lt;ns&gt;.svc.cluster.local:8081</code>.</li>
+<li>Environment: <code>CELLD_BUCKET</code>, <code>CELLD_INTERNAL_ADDR=0.0.0.0:8081</code>,
+<code>CELLD_ADVERTISE</code>, <code>CELLD_SHUTDOWN_DRAIN_MS=25000</code>,
+<code>CELLD_MAX_RESIDENT_CELLS</code>, <code>CELLD_MAX_RSS_MB</code> (~80% of the container
+memory limit, set explicitly — the upstream default is not cgroup-aware),
+<code>CELLD_VARS_FILE</code> from the vars Secret, and <code>CELLD_OTEL=1</code> when
+telemetry is enabled.</li>
+<li><code>terminationGracePeriodSeconds: 40</code> — drain bound plus margin, so the
+kubelet never SIGKILLs a draining node.</li>
+<li>Readiness probe: HTTP GET <code>/__celld/health</code> on :8080. celld answers 503
+during a graceful drain, which pulls the pod from EndpointSlices — the built-in drain
+signal.</li>
+<li><strong>Liveness probe: TCP-socket only.</strong> An HTTP liveness probe on the health
+path would kill nodes mid-drain, converting every graceful handoff into the abrupt-kill
+path.</li>
+<li>Pod-template annotation <code>celld.platform/app-version</code> — the declarative
+rollout trigger, since nodes load their deployment from the bucket at startup only.</li>
+<li>The StatefulSet's <code>rollingUpdate.partition</code> is owned by the
+<a href="/docs/deploying/#gated">rollout controller</a> — never by hand, never by GitOps
+directly.</li>
+</ul>
+
+<h3 id="net"><a class="anchor" href="#net">Networking and security wrapping</a></h3>
+<ul>
+<li>Public Service on :8080; ingress per the configured
+<a href="/docs/networking/#modes">ingress mode</a>, with 503-retry and WebSocket policy.</li>
+<li>NetworkPolicy: <code>:8081</code> ingress from fleet pods and the operator's namespace
+only. Reinforced by an Istio AuthorizationPolicy when Istio is installed. The internal
+listener is never routed.</li>
+<li><code>publishNotReadyAddresses</code> on the headless service, so peers can reach
+draining pods while they hand off cells.</li>
+<li>PodDisruptionBudget <code>maxUnavailable: 1</code>, keeping node maintenance as
+serialized as rollouts.</li>
+<li>Per-fleet ServiceAccount; bucket credentials via IRSA / Workload Identity
+(celld's credential chain accepts web identity tokens) or a Secret.</li>
+</ul>
+
+<h2 id="facts"><a class="anchor" href="#facts">The celld facts the design depends on</a></h2>
+<p>Every operator behavior traces to a documented celld fact (as of celld v0.2.0):</p>
+<div class="tbl-wrap"><table>
+<tr><th>celld fact</th><th>Operator consequence</th></tr>
+<tr><td>Two listeners: public (<code>--listen</code>, serves the Worker) and internal (<code>--internal-listen</code>, peer protocol + <em>unauthenticated</em> operator API).</td><td>Separate Services; the internal listener gets NetworkPolicy + AuthorizationPolicy and is never routed.</td></tr>
+<tr><td>Peers dial the <code>--advertise</code> address; celld terminates no TLS; docs require a trusted network or encrypted overlay.</td><td>Headless-service DNS for advertise; ambient-mesh mTLS (or an encrypted CNI) for the pod network.</td></tr>
+<tr><td>One fleet runs one application deployment.</td><td>Fleet-per-app tenancy.</td></tr>
+<tr><td>Nodes load the deployment from the bucket <strong>at startup only</strong>.</td><td>Deploys are bucket-publish <em>plus</em> rolling restart; the template annotation is the trigger.</td></tr>
+<tr><td>Rolling-update rule: wait for <em>every</em> node to report <code>restoring=0</code> before the next restart — the restore work lands on the peers.</td><td>A vanilla rolling update is insufficient; the operator runs a partition-stepped, restoring-gated rollout.</td></tr>
+<tr><td>SIGTERM starts a graceful drain bounded by <code>CELLD_SHUTDOWN_DRAIN_MS</code> (default 25s); health flips to 503; new requests get 503+close.</td><td>Termination grace 40s; 503 retries at the gateway; no HTTP liveness probe.</td></tr>
+<tr><td>The bucket must enforce conditional create/overwrite and read-after-write consistency; bucket credentials are fleet-admin authority.</td><td>Qualified-store list, <a href="/docs/object-stores/#qualification">qualification procedure</a>, per-fleet credential scoping.</td></tr>
+<tr><td>Some celld upgrades are explicitly not rolling-safe (v0.1 ↔ v0.2 mixed fleets break); security fixes land on the latest release only.</td><td>The <a href="/docs/deploying/#celld-upgrades">Recreate strategy</a> and a version-compatibility gate; latest-only support policy.</td></tr>
+<tr><td>Telemetry writes Parquet traces/logs to the bucket or OTLP; W3C <code>traceparent</code> propagates; no metrics signal yet.</td><td>Per-tenant <a href="/docs/observability/">observability</a> from the tenant's own prefix; the operator's <code>/state</code>-derived Prometheus export is the metrics plane.</td></tr>
+<tr><td>No rebalancing on node join; placement is traffic-driven; pressure shedding via <code>CELLD_MAX_RSS_MB</code>.</td><td>Scale up early, expect slow absorption; memory bounds set explicitly from the pod limit.</td></tr>
+</table></div>
+
+<h2 id="boundaries"><a class="anchor" href="#boundaries">Trust boundaries</a></h2>
+<div class="tbl-wrap"><table>
+<tr><th>Boundary</th><th>Mechanism</th></tr>
+<tr><td>Internet → Worker</td><td>Gateway: TLS termination, per-host routing. Application-level auth is the tenant's job — celld does not authenticate end users.</td></tr>
+<tr><td>Tenant ↔ tenant</td><td>Namespace + NetworkPolicy + fleet-scoped IAM; optional dedicated node pools.</td></tr>
+<tr><td>Anything → operator API (:8081)</td><td>Unauthenticated by design upstream → NetworkPolicy + AuthorizationPolicy; only fleet pods and the operator reach it; never routed.</td></tr>
+<tr><td>Node ↔ node (peer protocol)</td><td>celld's own HMAC/replay auth <em>plus</em> ambient mTLS for confidentiality.</td></tr>
+<tr><td>Fleet → bucket</td><td>Per-fleet IAM role, prefix-scoped. The bucket credential is fleet-admin authority, so scoping <em>is</em> the tenancy enforcement.</td></tr>
+<tr><td>Operator → fleets</td><td>The operator's own ServiceAccount — the only authorized cross-namespace <code>:8081</code> caller.</td></tr>
+</table></div>
+
+<h2 id="layout"><a class="anchor" href="#layout">Repository layout</a></h2>
+<ul>
+<li><code>api/v1alpha1</code> — the <code>WorkerApp</code> types.</li>
+<li><code>internal/controller</code> — <code>fleet_resources.go</code> (resource builders),
+<code>rollout.go</code> (the gated rollout state machine), <code>fleetstate.go</code>
+(the <code>/state</code> poller and metrics).</li>
+<li><code>hack/cas-hammer</code> — the store-qualification concurrency hammer.</li>
+<li><code>dist/chart</code> — the Helm chart.</li>
+</ul>
+
+<nav class="pager" aria-label="Docs pages"><a class="prev" href="/docs/quick-start/" rel="prev"><span class="dir">&larr; Previous</span>Quick start</a><a class="next" href="/docs/object-stores/" rel="next"><span class="dir">Next &rarr;</span>Object stores</a></nav>
+</main>
+</div>
+
+<footer class="site-foot">
+  <div class="container">
+    <div class="cols">
+      <div>
+        <a class="brand" href="/"><svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+          celld-operator
+        </a>
+        <p style="margin:.6rem 0 0; font-size:.88rem">
+          A Kubernetes control plane for celld: self-hosted Cloudflare Workers and
+          Durable Objects on infrastructure you own.
+        </p>
+      </div>
+      <div>
+        <h4>Documentation</h4>
+        <ul>
+          <li><a href="/docs/">Introduction</a></li>
+          <li><a href="/docs/quick-start/">Quick start</a></li>
+          <li><a href="/docs/workerapp/">WorkerApp reference</a></li>
+          <li><a href="/docs/compatibility/">Cloudflare compatibility</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/ezgamehost/celld-operator" rel="external">GitHub</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/DESIGN.md" rel="external">Design document</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/SECURITY.md" rel="external">Security policy</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/CONTRIBUTING.md" rel="external">Contributing</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Upstream</h4>
+        <ul>
+          <li><a href="https://celld.dev" rel="external">celld.dev</a></li>
+          <li><a href="https://github.com/denoland/celld" rel="external">denoland/celld</a></li>
+          <li><a href="https://celld.dev/docs" rel="external">celld documentation</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="legal">
+      celld-operator is an independent open-source project released under the
+      Apache License 2.0. celld is a project of Deno Land Inc. Cloudflare, Cloudflare
+      Workers, and Durable Objects are trademarks of Cloudflare, Inc. This project is
+      not affiliated with, sponsored by, or endorsed by Deno Land or Cloudflare.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

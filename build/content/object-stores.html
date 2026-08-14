@@ -1,0 +1,84 @@
+<h1>Object stores</h1>
+<p class="lead">
+The bucket is celld's control plane <em>and</em> durability root. It must enforce
+conditional writes atomically and read a write back immediately — and a store that merely
+<em>accepts</em> the conditional headers without enforcing them fails late and silently,
+as two nodes owning one cell.
+</p>
+
+<h2 id="contract"><a class="anchor" href="#contract">The fencing contract</a></h2>
+<p>celld requires three properties from the store:</p>
+<ol>
+<li><strong>Conditional create</strong> — a write that fails when the object already exists
+(<code>If-None-Match: *</code> on S3-compatible stores).</li>
+<li><strong>Conditional overwrite</strong> — a write that fails when the object changed
+since it was read (ETag compare-and-swap via <code>If-Match</code>; on GCS, the
+<code>x-goog-if-generation-match</code> precondition).</li>
+<li><strong>Read-after-write consistency</strong> — a completed write is visible to the
+next read.</li>
+</ol>
+<p>
+How celld uses them: each cell has one ownership record naming the owner node and a
+fencing <em>epoch</em>. Acquiring a cell is a conditional write, so the store accepts
+exactly one winner. The replication stream itself uses plain writes — the epoch in the
+key is the fence — and the acknowledgement path re-reads the ownership record before
+answering the client, so a paused process or skewed clock cannot fake ownership. A node
+that cannot reach the bucket cannot renew its lease, stops writing, and releases its
+residency: node failure is a normal input, not a recovery procedure.
+</p>
+
+<h2 id="qualified"><a class="anchor" href="#qualified">Qualified and disqualified stores</a></h2>
+<div class="tbl-wrap"><table>
+<tr><th>Status</th><th>Stores</th></tr>
+<tr><td><span class="status-ok">Qualified</span> (per celld's docs)</td><td>Amazon S3, Cloudflare R2, Google Cloud Storage, Azure Blob Storage, Tigris. celld's release tests run against R2; the AWS S3 path uses the same client and headers.</td></tr>
+<tr><td><span class="status-bad">Not qualified</span></td><td>MinIO community edition, Backblaze B2, Hetzner Object Storage, DigitalOcean Spaces. celld is <em>not correct</em> on these: two nodes can own one cell.</td></tr>
+<tr><td>Unproven</td><td>Young S3-compatibles (RustFS and similar). Treat as disqualified until you qualify them yourself — as of early 2026, RustFS's conditional-request layer had open correctness issues.</td></tr>
+</table></div>
+<p>
+For <code>gs://</code> buckets, celld uses the Cloud Storage XML API with generation
+preconditions and Application Default Credentials; it rejects an S3
+<code>--endpoint</code> for a <code>gs://</code> bucket.
+</p>
+
+<h2 id="qualification"><a class="anchor" href="#qualification">Qualifying a store yourself</a></h2>
+<p>
+Before trusting any store not on the qualified list — and again after every store
+upgrade — run both checks:
+</p>
+<pre class="code"><code><span class="c"># 1. celld's own sequential CAS contract test (from the celld repo):</span>
+<span class="p">$</span> CELLD_CAS_LIVE=1 CELLD_CAS_BUCKET=&lt;bucket&gt; CELLD_CAS_ENDPOINT=&lt;url&gt; \
+    cargo test -p celld put_cas_contract -- --nocapture
+
+<span class="c"># 2. The operator repo's concurrency hammer — N racers, exactly one winner per round:</span>
+<span class="p">$</span> go run ./hack/cas-hammer --bucket &lt;bucket&gt; --endpoint &lt;url&gt; \
+    --writers 8 --rounds 32</code></pre>
+<p>
+The sequential test proves the condition is applied at all; only the hammer probes
+atomicity under race. <strong>Exit 1 from the hammer means the store cannot fence celld
+cells. Do not run a fleet on it.</strong>
+</p>
+
+<h2 id="topology"><a class="anchor" href="#topology">Placement and failure domains</a></h2>
+<ul>
+<li><strong>The operator never runs the store.</strong> Run a managed store, or operate
+your own outside the fleet's failure domain.</li>
+<li><strong>Keep the store out of the workload cluster.</strong> A cluster incident must
+not take out compute and the source of truth together.</li>
+<li><strong>RPO=0 is inherited from the store's durability.</strong> That is the argument
+for a managed store even in otherwise self-hosted deployments.</li>
+</ul>
+
+<h2 id="prefixes"><a class="anchor" href="#prefixes">Prefixes and credentials</a></h2>
+<p>
+A fleet's bucket may carry a key prefix — <code>s3://platform-cells/apps/chat</code> —
+and all fleet objects (deployments, SQLite replicas, ownership records, node leases, the
+peer-auth secret, telemetry) live under it. Many fleets can share one physical bucket
+while IAM scoping keeps authority per-fleet.
+</p>
+<div class="danger">
+<p><strong>Bucket credentials are fleet-admin authority.</strong> Whoever holds them
+controls the fleet: deployments, cell state, leases, the peer-auth secret. Scope one IAM
+role per fleet to that fleet's prefix and nothing else; prefer IRSA / Workload Identity
+over static keys (<code>credentialsFrom.secretRef</code> exists for stores without role
+auth); rotate immediately after suspected disclosure.</p>
+</div>

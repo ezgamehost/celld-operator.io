@@ -1,0 +1,66 @@
+<h1>Operator configuration</h1>
+<p class="lead">
+Every operator flag, its Helm value, and what happens when an optional integration is
+absent. Flags configure the operator once; per-app behavior lives in the
+<a href="/docs/workerapp/">WorkerApp resource</a>.
+</p>
+
+<h2 id="flags"><a class="anchor" href="#flags">Flags and Helm values</a></h2>
+<p>Each flag maps to a value under <code>operator.*</code> in the chart's
+<code>values.yaml</code>:</p>
+<div class="tbl-wrap"><table>
+<tr><th>Flag</th><th>Helm value</th><th>Default</th><th>Purpose</th></tr>
+<tr><td><code>--ingress-mode</code></td><td><code>operator.ingressMode</code></td><td><code>httproute</code></td><td>How hostnames are routed: <code>httproute</code> (Gateway API), <code>virtualservice</code> (classic Istio), <code>ingress</code> (<code>networking.k8s.io/v1</code>), or <code>none</code>. See <a href="/docs/networking/#modes">ingress modes</a>.</td></tr>
+<tr><td><code>--gateway-name</code></td><td><code>operator.gatewayName</code></td><td><code>edge</code></td><td>Shared Gateway that HTTPRoutes attach to (<code>httproute</code> mode).</td></tr>
+<tr><td><code>--gateway-namespace</code></td><td><code>operator.gatewayNamespace</code></td><td><code>infra</code></td><td>Namespace of that Gateway.</td></tr>
+<tr><td><code>--istio-gateways</code></td><td><code>operator.istioGateways</code></td><td>—</td><td>Pre-existing <code>networking.istio.io</code> Gateways (<code>namespace/name</code>, comma-separated) that VirtualServices bind to in <code>virtualservice</code> mode.</td></tr>
+<tr><td><code>--ingress-class</code></td><td><code>operator.ingressClass</code></td><td>cluster default</td><td>IngressClass for <code>ingress</code> mode.</td></tr>
+<tr><td><code>--cluster-issuer</code></td><td><code>operator.clusterIssuer</code></td><td>—</td><td>cert-manager ClusterIssuer for <code>ingress</code> mode; when set, each app's Ingress requests its own TLS certificate. Drain-retry and WebSocket policies become ingress-nginx annotations in this mode (ignored by other controllers).</td></tr>
+<tr><td><code>--prometheus-url</code></td><td><code>operator.prometheusURL</code></td><td><code>http://prometheus-operated.monitoring.svc:9090</code></td><td>Where KEDA queries the operator's <code>celld_*</code> metrics.</td></tr>
+<tr><td><code>--operator-namespace</code></td><td>release namespace</td><td><code>celld-operator-system</code></td><td>Allowed by fleet NetworkPolicies to reach :8081.</td></tr>
+<tr><td><code>--operator-principal</code></td><td><code>operator.operatorPrincipal</code></td><td>derived</td><td>Operator identity in Istio AuthorizationPolicies; empty derives <code>cluster.local/ns/&lt;release ns&gt;/sa/&lt;service account&gt;</code>.</td></tr>
+<tr><td><code>--state-poll-interval</code></td><td><code>operator.statePollInterval</code></td><td><code>15s</code></td><td><code>/state</code> polling cadence for metrics export and rollout gating.</td></tr>
+<tr><td><code>--deploy-poll-interval</code></td><td><code>operator.deployPollInterval</code></td><td><code>60s</code></td><td>Bucket <code>deploy/current.json</code> polling cadence for <code>appVersion: auto</code> and version-mismatch detection.</td></tr>
+</table></div>
+
+<h2 id="chart"><a class="anchor" href="#chart">Other chart values</a></h2>
+<div class="tbl-wrap"><table>
+<tr><th>Value</th><th>Default</th><th>Purpose</th></tr>
+<tr><td><code>controllerManager.replicas</code></td><td><code>1</code></td><td>Manager replicas; leader election is on (<code>--leader-elect</code>).</td></tr>
+<tr><td><code>controllerManager.container.image.repository</code></td><td><code>ghcr.io/ezgamehost/celld-operator</code></td><td>Operator image.</td></tr>
+<tr><td><code>controllerManager.container.image.tag</code></td><td><code>""</code></td><td>Empty uses the chart's <code>appVersion</code> — the operator build the chart was released with.</td></tr>
+<tr><td><code>crd.enable</code></td><td><code>true</code></td><td>Include the CRDs in the release.</td></tr>
+<tr><td><code>rbac.enable</code></td><td><code>true</code></td><td>Include RBAC objects.</td></tr>
+</table></div>
+<p>
+The manager runs non-root with a restricted security context, exposes health probes on
+:8081 (its own, not celld's) and metrics on :8443.
+</p>
+
+<h2 id="degradation"><a class="anchor" href="#degradation">Graceful degradation</a></h2>
+<p>
+The operator requires none of its optional integrations to start reconciling. Absence is
+reported per-WorkerApp, not failed on:
+</p>
+<div class="tbl-wrap"><table>
+<tr><th>Missing</th><th>Effect</th><th>Condition</th></tr>
+<tr><td>Gateway API CRDs / implementation</td><td>Hostnames are not routed; fleet still serves in-cluster</td><td><code>IngressReady: False</code></td></tr>
+<tr><td>Istio</td><td>NetworkPolicy alone guards :8081; no ambient mTLS</td><td><code>MeshPolicyReady: False</code></td></tr>
+<tr><td>KEDA / Prometheus</td><td><code>spec.autoscaling</code> has no effect; fleet runs at <code>spec.replicas</code></td><td><code>AutoscalingReady: False</code></td></tr>
+</table></div>
+
+<h2 id="store-qualification"><a class="anchor" href="#store-qualification">Store qualification tooling</a></h2>
+<p>
+The repository ships <code>hack/cas-hammer</code>, the concurrency probe for
+<a href="/docs/object-stores/#qualification">qualifying object stores</a>:
+</p>
+<pre class="code"><code><span class="p">$</span> go run ./hack/cas-hammer --bucket &lt;bucket&gt; --endpoint &lt;url&gt; --writers 8 --rounds 32</code></pre>
+
+<h2 id="development"><a class="anchor" href="#development">Development</a></h2>
+<pre class="code"><code><span class="p">$</span> make test     <span class="c"># envtest suite + unit tests</span>
+<span class="p">$</span> make lint     <span class="c"># golangci-lint</span>
+<span class="p">$</span> make run      <span class="c"># run against the current kubeconfig</span></code></pre>
+<p>
+Contributions are welcome — see
+<a href="https://github.com/ezgamehost/celld-operator/blob/main/CONTRIBUTING.md" rel="external">CONTRIBUTING.md</a>.
+</p>

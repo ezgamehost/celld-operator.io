@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deploying Updates and Rollouts — celld-operator</title>
+<meta name="description" content="How deploys work on celld-operator: publish to the bucket, roll the fleet with the gated rollout controller, appVersion auto-tracking, and celld version upgrades.">
+<link rel="canonical" href="https://celld-operator.io/docs/deploying/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="celld-operator">
+<meta property="og:title" content="Deploying Updates and Rollouts">
+<meta property="og:description" content="How deploys work on celld-operator: publish to the bucket, roll the fleet with the gated rollout controller, appVersion auto-tracking, and celld version upgrades.">
+<meta property="og:url" content="https://celld-operator.io/docs/deploying/">
+<meta property="og:image" content="https://celld-operator.io/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Deploying Updates and Rollouts">
+<meta name="twitter:description" content="How deploys work on celld-operator: publish to the bucket, roll the fleet with the gated rollout controller, appVersion auto-tracking, and celld version upgrades.">
+<meta name="twitter:image" content="https://celld-operator.io/assets/og.png">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "Deploying Updates and Rollouts",
+ "description": "How deploys work on celld-operator: publish to the bucket, roll the fleet with the gated rollout controller, appVersion auto-tracking, and celld version upgrades.",
+ "url": "https://celld-operator.io/docs/deploying/",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "celld-operator",
+  "url": "https://celld-operator.io/"
+ },
+ "about": {
+  "@type": "SoftwareApplication",
+  "name": "celld-operator",
+  "operatingSystem": "Kubernetes 1.30+",
+  "applicationCategory": "DeveloperApplication"
+ }
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "BreadcrumbList",
+ "itemListElement": [
+  {
+   "@type": "ListItem",
+   "position": 1,
+   "name": "Home",
+   "item": "https://celld-operator.io/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 2,
+   "name": "Docs",
+   "item": "https://celld-operator.io/docs/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 3,
+   "name": "Deploying updates",
+   "item": "https://celld-operator.io/docs/deploying/"
+  }
+ ]
+}
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-head">
+  <div class="container">
+    <a class="brand" href="/">
+      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+      celld-operator
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="/docs/">Docs</a>
+      <a href="/docs/compatibility/">Compatibility</a>
+      <a href="https://celld.dev" rel="external">celld.dev</a>
+      <a class="gh" href="https://github.com/ezgamehost/celld-operator" rel="external">
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </nav>
+  </div>
+</header>
+
+<div class="container docs-wrap">
+<nav class="docs-nav" aria-label="Documentation">
+<details open>
+<summary>Documentation menu</summary>
+<div class="docs-nav-inner">
+<h4>Getting started</h4>
+<ul>
+<li><a href="/docs/">Introduction</a></li>
+<li><a href="/docs/install/">Installation</a></li>
+<li><a href="/docs/quick-start/">Quick start</a></li>
+</ul>
+<h4>Concepts</h4>
+<ul>
+<li><a href="/docs/architecture/">Architecture</a></li>
+<li><a href="/docs/object-stores/">Object stores</a></li>
+<li><a href="/docs/compatibility/">Cloudflare compatibility</a></li>
+</ul>
+<h4>Guides</h4>
+<ul>
+<li><a href="/docs/deploying/" aria-current="page">Deploying updates</a></li>
+<li><a href="/docs/autoscaling/">Autoscaling</a></li>
+<li><a href="/docs/networking/">Networking &amp; ingress</a></li>
+<li><a href="/docs/security/">Security</a></li>
+<li><a href="/docs/observability/">Observability</a></li>
+</ul>
+<h4>Reference</h4>
+<ul>
+<li><a href="/docs/workerapp/">WorkerApp reference</a></li>
+<li><a href="/docs/operator-configuration/">Operator configuration</a></li>
+</ul>
+</div>
+</details>
+<script>if(matchMedia("(max-width: 56rem)").matches)document.currentScript.parentElement.querySelector("details").removeAttribute("open")</script>
+</nav>
+<main class="docs-main" id="main">
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a> &rsaquo; <a href="/docs/">Docs</a> &rsaquo; <span>Deploying updates</span></nav>
+<h1>Deploying updates</h1>
+<p class="lead">
+celld nodes load their application deployment from the bucket <strong>at startup
+only</strong> — publishing a new version serves nothing until the fleet restarts. Every
+deploy is therefore two steps: publish to the bucket, then roll the fleet. The operator
+owns the second step and makes it safe.
+</p>
+
+<h2 id="pinned"><a class="anchor" href="#pinned">Pinned mode: appVersion in git</a></h2>
+<pre class="code"><code><span class="p">$</span> celld deploy . --bucket s3://platform-cells/apps/chat …    <span class="c"># 1. publish</span>
+<span class="p">$</span> kubectl patch workerapp chat -n tenant-acme --type merge \
+    -p <span class="s">'{"spec":{"appVersion":"sha-def456"}}'</span>                 <span class="c"># 2. roll</span></code></pre>
+<p>
+Or bump <code>appVersion</code> in git and let your GitOps tool apply it. The version
+string names a deployment in the fleet bucket, written there by <code>celld deploy</code>.
+</p>
+<p>
+In pinned mode the operator still reads the bucket's <code>deploy/current.json</code>
+pointer and raises a <code>DeployTrackingReady: VersionMismatch</code> warning when the
+bucket and the resource disagree — nodes always load the bucket's version, so drift is
+surfaced, never silent.
+</p>
+
+<h2 id="auto"><a class="anchor" href="#auto">Auto mode: follow the bucket</a></h2>
+<p>
+Prefer <code>celld deploy</code> to be the whole story? Set
+<code>appVersion: auto</code> and the operator follows the bucket's
+<code>deploy/current.json</code> itself. A new publish rolls the fleet within one
+poll interval (<code>--deploy-poll-interval</code>, default 60s), with no resource edit,
+and <code>status.rolledOutAppVersion</code> reports the concrete version being served.
+</p>
+<p>
+Tracking reads use the fleet's <code>secretRef</code> credentials when set, or the
+operator's ambient AWS identity otherwise.
+</p>
+
+<h2 id="gated"><a class="anchor" href="#gated">The gated rollout</a></h2>
+<p>
+Vanilla StatefulSet rolling updates gate each step on the <em>new pod's</em> readiness.
+celld's documented rule is different: after restarting a node, wait until <em>every</em>
+node reports <code>restoring=0</code> before restarting the next — and that restore work
+lands on the <strong>peers</strong> that absorbed the drained node's cells, which a stock
+rolling update cannot see. Running ahead of the fleet's real recovery is not a data-loss
+risk (the bucket is authoritative, RPO=0), but it is a cold-start latency storm: warm
+capacity leaves faster than the fleet re-warms.
+</p>
+<p>The operator implements the documented procedure with the StatefulSet partition:</p>
+<pre class="code"><code><span class="c">on template change (appVersion, image, or secret rotation):</span>
+  partition ← replicas                    <span class="c"># freeze: no pod updates yet</span>
+  for ordinal in (replicas−1) … 0:
+    partition ← ordinal                   <span class="c"># release exactly one pod</span>
+    wait: pod[ordinal] runs the new revision and is Ready
+    wait: every fleet pod reports /state restoring == 0
+  partition ← 0; status.rolledOutAppVersion ← appVersion</code></pre>
+<p>
+If any wait exceeds its budget, the rollout holds its partition, the phase turns
+<code>Degraded</code>, and a condition names the gate — the operator never proceeds past
+a churning fleet. Progress is visible at any moment in
+<code>status.rollout.waitingOn</code> (for example <code>celld-2: Ready</code> or
+<code>fleet: restoring=3</code>).
+</p>
+<p>
+During any rollout the autoscaler is paused and replicas are pinned, so KEDA and the
+partition controller never fight over replica count. Drain 503s are retried at the
+gateway, making rollouts invisible to clients — see
+<a href="/docs/networking/#drains">Networking &amp; ingress</a>.
+</p>
+
+<h2 id="celld-upgrades"><a class="anchor" href="#celld-upgrades">celld version upgrades</a></h2>
+<p>
+Bumping <code>spec.celld.image</code> rolls the fleet the same gated way — except across
+boundaries upstream flags as <strong>not rolling-safe</strong>. celld v0.1.0 → v0.2.0 was
+one: advertise records and block-object formats changed, and mixed fleets are forbidden.
+</p>
+<p>
+The operator maintains a version-compatibility table from celld release notes and
+<strong>refuses</strong> a Rolling strategy across a flagged boundary with
+<code>phase: Degraded</code> — a GitOps diff alone can never create a mixed fleet. To
+cross the boundary, the resource must explicitly set:
+</p>
+<pre class="code"><code><span class="k">celld:</span>
+  <span class="k">image:</span> <span class="s">ghcr.io/denoland/celld:v0.2.0</span>
+  <span class="k">updateStrategy:</span> <span class="s">Recreate</span></code></pre>
+<p>
+Recreate scales the fleet to zero, waits for every node to drain, then starts the new
+version. That is an availability event <em>by design</em>; the resource has to ask for
+it, and status surfaces it as <code>phase: Recreating</code>.
+</p>
+<div class="warn">
+<p>celld ships security fixes for its <strong>latest release only</strong> — plan to
+track head, and keep the operator current alongside (the internal <code>/state</code> API
+the operator depends on is explicitly unstable, so operator and celld versions are
+qualified as pairs).</p>
+</div>
+
+<h2 id="secrets"><a class="anchor" href="#secrets">Rotating variables and secrets</a></h2>
+<p>
+Worker vars come from a Kubernetes Secret (key <code>vars.env</code>,
+<code>NAME=value</code> lines) mounted and passed via <code>CELLD_VARS_FILE</code>. The
+operator digests every referenced Secret into a pod-template annotation, so a rotation
+changes the template and rolls the fleet through the same gated rollout. Values are never
+baked into bundles.
+</p>
+
+<h2 id="ci"><a class="anchor" href="#ci">CI validation</a></h2>
+<p>The recommended pipeline:</p>
+<ol>
+<li><strong>Pull request:</strong> pinned esbuild + <code>celld deploy . --dry-run</code>.
+Unsupported <a href="/docs/compatibility/#config">config keys</a> fail here with a clean
+named-key error — never at runtime.</li>
+<li><strong>Merge:</strong> <code>celld deploy .</code> against the fleet's bucket prefix.
+The bucket now holds the new deployment; nothing is serving it yet.</li>
+<li><strong>Roll out:</strong> bump <code>spec.appVersion</code> (GitOps), or let
+<code>appVersion: auto</code> pick it up.</li>
+</ol>
+
+<nav class="pager" aria-label="Docs pages"><a class="prev" href="/docs/compatibility/" rel="prev"><span class="dir">&larr; Previous</span>Cloudflare compatibility</a><a class="next" href="/docs/autoscaling/" rel="next"><span class="dir">Next &rarr;</span>Autoscaling</a></nav>
+</main>
+</div>
+
+<footer class="site-foot">
+  <div class="container">
+    <div class="cols">
+      <div>
+        <a class="brand" href="/"><svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+          celld-operator
+        </a>
+        <p style="margin:.6rem 0 0; font-size:.88rem">
+          A Kubernetes control plane for celld: self-hosted Cloudflare Workers and
+          Durable Objects on infrastructure you own.
+        </p>
+      </div>
+      <div>
+        <h4>Documentation</h4>
+        <ul>
+          <li><a href="/docs/">Introduction</a></li>
+          <li><a href="/docs/quick-start/">Quick start</a></li>
+          <li><a href="/docs/workerapp/">WorkerApp reference</a></li>
+          <li><a href="/docs/compatibility/">Cloudflare compatibility</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/ezgamehost/celld-operator" rel="external">GitHub</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/DESIGN.md" rel="external">Design document</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/SECURITY.md" rel="external">Security policy</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/CONTRIBUTING.md" rel="external">Contributing</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Upstream</h4>
+        <ul>
+          <li><a href="https://celld.dev" rel="external">celld.dev</a></li>
+          <li><a href="https://github.com/denoland/celld" rel="external">denoland/celld</a></li>
+          <li><a href="https://celld.dev/docs" rel="external">celld documentation</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="legal">
+      celld-operator is an independent open-source project released under the
+      Apache License 2.0. celld is a project of Deno Land Inc. Cloudflare, Cloudflare
+      Workers, and Durable Objects are trademarks of Cloudflare, Inc. This project is
+      not affiliated with, sponsored by, or endorsed by Deno Land or Cloudflare.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

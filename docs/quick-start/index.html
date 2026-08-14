@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quick Start: Your First WorkerApp — celld-operator</title>
+<meta name="description" content="Deploy a Wrangler project to your bucket with celld deploy, create a WorkerApp resource, and watch the operator converge a running celld fleet.">
+<link rel="canonical" href="https://celld-operator.io/docs/quick-start/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="celld-operator">
+<meta property="og:title" content="Quick Start: Your First WorkerApp">
+<meta property="og:description" content="Deploy a Wrangler project to your bucket with celld deploy, create a WorkerApp resource, and watch the operator converge a running celld fleet.">
+<meta property="og:url" content="https://celld-operator.io/docs/quick-start/">
+<meta property="og:image" content="https://celld-operator.io/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Quick Start: Your First WorkerApp">
+<meta name="twitter:description" content="Deploy a Wrangler project to your bucket with celld deploy, create a WorkerApp resource, and watch the operator converge a running celld fleet.">
+<meta name="twitter:image" content="https://celld-operator.io/assets/og.png">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "Quick Start: Your First WorkerApp",
+ "description": "Deploy a Wrangler project to your bucket with celld deploy, create a WorkerApp resource, and watch the operator converge a running celld fleet.",
+ "url": "https://celld-operator.io/docs/quick-start/",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "celld-operator",
+  "url": "https://celld-operator.io/"
+ },
+ "about": {
+  "@type": "SoftwareApplication",
+  "name": "celld-operator",
+  "operatingSystem": "Kubernetes 1.30+",
+  "applicationCategory": "DeveloperApplication"
+ }
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "BreadcrumbList",
+ "itemListElement": [
+  {
+   "@type": "ListItem",
+   "position": 1,
+   "name": "Home",
+   "item": "https://celld-operator.io/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 2,
+   "name": "Docs",
+   "item": "https://celld-operator.io/docs/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 3,
+   "name": "Quick start",
+   "item": "https://celld-operator.io/docs/quick-start/"
+  }
+ ]
+}
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-head">
+  <div class="container">
+    <a class="brand" href="/">
+      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+      celld-operator
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="/docs/">Docs</a>
+      <a href="/docs/compatibility/">Compatibility</a>
+      <a href="https://celld.dev" rel="external">celld.dev</a>
+      <a class="gh" href="https://github.com/ezgamehost/celld-operator" rel="external">
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </nav>
+  </div>
+</header>
+
+<div class="container docs-wrap">
+<nav class="docs-nav" aria-label="Documentation">
+<details open>
+<summary>Documentation menu</summary>
+<div class="docs-nav-inner">
+<h4>Getting started</h4>
+<ul>
+<li><a href="/docs/">Introduction</a></li>
+<li><a href="/docs/install/">Installation</a></li>
+<li><a href="/docs/quick-start/" aria-current="page">Quick start</a></li>
+</ul>
+<h4>Concepts</h4>
+<ul>
+<li><a href="/docs/architecture/">Architecture</a></li>
+<li><a href="/docs/object-stores/">Object stores</a></li>
+<li><a href="/docs/compatibility/">Cloudflare compatibility</a></li>
+</ul>
+<h4>Guides</h4>
+<ul>
+<li><a href="/docs/deploying/">Deploying updates</a></li>
+<li><a href="/docs/autoscaling/">Autoscaling</a></li>
+<li><a href="/docs/networking/">Networking &amp; ingress</a></li>
+<li><a href="/docs/security/">Security</a></li>
+<li><a href="/docs/observability/">Observability</a></li>
+</ul>
+<h4>Reference</h4>
+<ul>
+<li><a href="/docs/workerapp/">WorkerApp reference</a></li>
+<li><a href="/docs/operator-configuration/">Operator configuration</a></li>
+</ul>
+</div>
+</details>
+<script>if(matchMedia("(max-width: 56rem)").matches)document.currentScript.parentElement.querySelector("details").removeAttribute("open")</script>
+</nav>
+<main class="docs-main" id="main">
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a> &rsaquo; <a href="/docs/">Docs</a> &rsaquo; <span>Quick start</span></nav>
+<h1>Quick start</h1>
+<p class="lead">
+From a standard Wrangler project to a converged, routed, autoscaled celld fleet.
+This walkthrough assumes the <a href="/docs/install/">operator is installed</a> and you
+have a <a href="/docs/object-stores/">qualified bucket</a> (Cloudflare R2 in the examples).
+</p>
+
+<h2 id="before"><a class="anchor" href="#before">Before you begin</a></h2>
+<p>You need the <code>celld</code> CLI and esbuild on your workstation or CI runner to
+publish deployments (the operator never touches your build):</p>
+<pre class="code"><code><span class="p">$</span> curl -fsSL https://celld.dev/install.sh | sh   <span class="c"># verifiable with gh attestation verify</span></code></pre>
+<p>
+Worker projects built by <code>celld deploy</code> need
+<a href="https://esbuild.github.io" rel="external">esbuild</a> on <code>PATH</code>;
+asset-only projects do not.
+</p>
+
+<h2 id="publish"><a class="anchor" href="#publish">1. Deploy your Worker to the bucket</a></h2>
+<p>
+A standard Wrangler project: <code>wrangler.jsonc</code> (or <code>.json</code> —
+<code>wrangler.toml</code> is not accepted), module Workers, Durable Object bindings,
+static assets. Publish it to the fleet's bucket prefix:
+</p>
+<pre class="code"><code><span class="p">$</span> celld deploy . --bucket s3://platform-cells/apps/chat \
+    --endpoint https://ACCOUNT.r2.cloudflarestorage.com --region auto</code></pre>
+<p>
+celld validates the config with a strict key allowlist — an unsupported key
+(<code>kv_namespaces</code>, <code>routes</code>, <code>triggers</code>, …) stops the
+deploy with an error naming the key. Nothing fails silently at runtime. Use
+<code>celld deploy . --dry-run</code> in CI to catch this on pull requests.
+</p>
+
+<h2 id="secrets"><a class="anchor" href="#secrets">2. Provide variables and secrets (optional)</a></h2>
+<p>
+Worker <code>vars</code> and secrets come from a Kubernetes Secret with a
+<code>vars.env</code> key in <code>NAME=value</code> lines, passed to celld via
+<code>CELLD_VARS_FILE</code> — never baked into bundles:
+</p>
+<pre class="code"><code><span class="p">$</span> kubectl create secret generic chat-vars -n tenant-acme \
+    --from-literal=vars.env=<span class="s">'OPENAI_API_KEY=sk-…'</span></code></pre>
+
+<h2 id="create"><a class="anchor" href="#create">3. Create the WorkerApp</a></h2>
+<pre class="code"><code><span class="k">apiVersion:</span> <span class="s">platform.ezghcloud.com/v1alpha1</span>
+<span class="k">kind:</span> <span class="s">WorkerApp</span>
+<span class="k">metadata:</span>
+  <span class="k">name:</span> <span class="s">chat</span>
+  <span class="k">namespace:</span> <span class="s">tenant-acme</span>
+<span class="k">spec:</span>
+  <span class="k">hostnames:</span> <span class="s">["chat.acme.example.com"]</span>  <span class="c"># routed via the shared Gateway</span>
+  <span class="k">appVersion:</span> <span class="s">sha-abc123</span>                <span class="c"># which bucket deployment is live</span>
+  <span class="k">celld:</span>
+    <span class="k">image:</span> <span class="s">ghcr.io/denoland/celld:v0.2.0</span>
+    <span class="k">updateStrategy:</span> <span class="s">Rolling</span>            <span class="c"># Recreate for non-rolling celld upgrades</span>
+  <span class="k">replicas:</span> <span class="n">3</span>
+  <span class="k">bucket:</span>
+    <span class="k">name:</span> <span class="s">s3://platform-cells/apps/chat</span> <span class="c"># bucket + per-app prefix</span>
+    <span class="k">endpoint:</span> <span class="s">https://ACCOUNT.r2.cloudflarestorage.com</span>
+    <span class="k">region:</span> <span class="s">auto</span>
+    <span class="k">credentialsFrom:</span>
+      <span class="k">iamRole:</span> <span class="s">arn:aws:iam::123456789012:role/celld-chat</span>  <span class="c"># IRSA; or secretRef</span>
+  <span class="k">resources:</span>
+    <span class="k">memoryGi:</span> <span class="n">8</span>                        <span class="c"># ~1,000 resident cells per 8 GiB</span>
+    <span class="k">maxResidentCells:</span> <span class="n">1000</span>
+  <span class="k">vars:</span>
+    <span class="k">secretRef:</span> <span class="s">chat-vars</span>
+  <span class="k">websockets:</span> <span class="n">true</span>                     <span class="c"># long idle timeouts, sticky-friendly</span>
+  <span class="k">autoscaling:</span>
+    <span class="k">enabled:</span> <span class="n">true</span>
+    <span class="k">minReplicas:</span> <span class="n">3</span>
+    <span class="k">maxReplicas:</span> <span class="n">10</span>
+    <span class="k">targets:</span>
+      <span class="k">residentCellUtilization:</span> <span class="n">70</span>      <span class="c"># % of maxResidentCells, fleet average</span>
+  <span class="k">telemetry:</span>
+    <span class="k">enabled:</span> <span class="n">true</span>                      <span class="c"># Parquet traces in the bucket by default</span>
+    <span class="k">retention:</span> <span class="s">30d</span></code></pre>
+<pre class="code"><code><span class="p">$</span> kubectl apply -f workerapp.yaml</code></pre>
+
+<h2 id="watch"><a class="anchor" href="#watch">4. Watch it converge</a></h2>
+<pre class="code"><code><span class="p">$</span> kubectl get workerapps -n tenant-acme
+NAME   PHASE   APP          READY   RESTORING   AGE
+chat   Ready   sha-abc123   3       0           2m</code></pre>
+<p>
+If something is missing (Gateway API CRDs, KEDA, credentials), the resource stays
+functional where it can and reports the gap as a condition:
+</p>
+<pre class="code"><code><span class="p">$</span> kubectl describe workerapp chat -n tenant-acme
+…
+Conditions:
+  Type               Status   Reason            Message
+  Available          True     FleetReady        3/3 pods ready, restoring=0
+  IngressReady       True     RouteAccepted     chat.acme.example.com → chat-celld:8080
+  AutoscalingReady   True     ScaledObjectSet   scaling 3–10 on residentCellUtilization</code></pre>
+
+<h2 id="request"><a class="anchor" href="#request">5. Send a request</a></h2>
+<pre class="code"><code><span class="p">$</span> curl https://chat.acme.example.com/rooms/lobby</code></pre>
+<p>
+No hostnames? Internal-only apps need no ingress at all — in-cluster consumers reach the
+fleet at <code>chat-celld.tenant-acme.svc:8080</code>.
+</p>
+
+<h2 id="update"><a class="anchor" href="#update">6. Ship an update</a></h2>
+<pre class="code"><code><span class="p">$</span> celld deploy . --bucket s3://platform-cells/apps/chat …   <span class="c"># publish sha-def456</span>
+<span class="p">$</span> kubectl patch workerapp chat -n tenant-acme --type merge \
+    -p <span class="s">'{"spec":{"appVersion":"sha-def456"}}'</span>                <span class="c"># roll the fleet</span></code></pre>
+<p>
+The operator runs a gated rolling update — one pod at a time, stepping only when the
+whole fleet reports <code>restoring=0</code> — so the rollout is invisible to clients.
+Prefer <code>celld deploy</code> to be the whole story? Set
+<code>appVersion: auto</code>. Both flows are covered in
+<a href="/docs/deploying/">Deploying updates</a>.
+</p>
+
+<nav class="pager" aria-label="Docs pages"><a class="prev" href="/docs/install/" rel="prev"><span class="dir">&larr; Previous</span>Installation</a><a class="next" href="/docs/architecture/" rel="next"><span class="dir">Next &rarr;</span>Architecture</a></nav>
+</main>
+</div>
+
+<footer class="site-foot">
+  <div class="container">
+    <div class="cols">
+      <div>
+        <a class="brand" href="/"><svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+          celld-operator
+        </a>
+        <p style="margin:.6rem 0 0; font-size:.88rem">
+          A Kubernetes control plane for celld: self-hosted Cloudflare Workers and
+          Durable Objects on infrastructure you own.
+        </p>
+      </div>
+      <div>
+        <h4>Documentation</h4>
+        <ul>
+          <li><a href="/docs/">Introduction</a></li>
+          <li><a href="/docs/quick-start/">Quick start</a></li>
+          <li><a href="/docs/workerapp/">WorkerApp reference</a></li>
+          <li><a href="/docs/compatibility/">Cloudflare compatibility</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/ezgamehost/celld-operator" rel="external">GitHub</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/DESIGN.md" rel="external">Design document</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/SECURITY.md" rel="external">Security policy</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/CONTRIBUTING.md" rel="external">Contributing</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Upstream</h4>
+        <ul>
+          <li><a href="https://celld.dev" rel="external">celld.dev</a></li>
+          <li><a href="https://github.com/denoland/celld" rel="external">denoland/celld</a></li>
+          <li><a href="https://celld.dev/docs" rel="external">celld documentation</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="legal">
+      celld-operator is an independent open-source project released under the
+      Apache License 2.0. celld is a project of Deno Land Inc. Cloudflare, Cloudflare
+      Workers, and Durable Objects are trademarks of Cloudflare, Inc. This project is
+      not affiliated with, sponsored by, or endorsed by Deno Land or Cloudflare.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

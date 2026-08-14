@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Observability: Telemetry and Metrics — celld-operator</title>
+<meta name="description" content="Per-tenant traces and logs as Parquet in your own bucket or OTLP to a collector, plus the operator's Prometheus metrics for fleet capacity and health.">
+<link rel="canonical" href="https://celld-operator.io/docs/observability/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/style.css">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="celld-operator">
+<meta property="og:title" content="Observability: Telemetry and Metrics">
+<meta property="og:description" content="Per-tenant traces and logs as Parquet in your own bucket or OTLP to a collector, plus the operator's Prometheus metrics for fleet capacity and health.">
+<meta property="og:url" content="https://celld-operator.io/docs/observability/">
+<meta property="og:image" content="https://celld-operator.io/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Observability: Telemetry and Metrics">
+<meta name="twitter:description" content="Per-tenant traces and logs as Parquet in your own bucket or OTLP to a collector, plus the operator's Prometheus metrics for fleet capacity and health.">
+<meta name="twitter:image" content="https://celld-operator.io/assets/og.png">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "Observability: Telemetry and Metrics",
+ "description": "Per-tenant traces and logs as Parquet in your own bucket or OTLP to a collector, plus the operator's Prometheus metrics for fleet capacity and health.",
+ "url": "https://celld-operator.io/docs/observability/",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "celld-operator",
+  "url": "https://celld-operator.io/"
+ },
+ "about": {
+  "@type": "SoftwareApplication",
+  "name": "celld-operator",
+  "operatingSystem": "Kubernetes 1.30+",
+  "applicationCategory": "DeveloperApplication"
+ }
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "BreadcrumbList",
+ "itemListElement": [
+  {
+   "@type": "ListItem",
+   "position": 1,
+   "name": "Home",
+   "item": "https://celld-operator.io/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 2,
+   "name": "Docs",
+   "item": "https://celld-operator.io/docs/"
+  },
+  {
+   "@type": "ListItem",
+   "position": 3,
+   "name": "Observability",
+   "item": "https://celld-operator.io/docs/observability/"
+  }
+ ]
+}
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-head">
+  <div class="container">
+    <a class="brand" href="/">
+      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+      celld-operator
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="/docs/">Docs</a>
+      <a href="/docs/compatibility/">Compatibility</a>
+      <a href="https://celld.dev" rel="external">celld.dev</a>
+      <a class="gh" href="https://github.com/ezgamehost/celld-operator" rel="external">
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </nav>
+  </div>
+</header>
+
+<div class="container docs-wrap">
+<nav class="docs-nav" aria-label="Documentation">
+<details open>
+<summary>Documentation menu</summary>
+<div class="docs-nav-inner">
+<h4>Getting started</h4>
+<ul>
+<li><a href="/docs/">Introduction</a></li>
+<li><a href="/docs/install/">Installation</a></li>
+<li><a href="/docs/quick-start/">Quick start</a></li>
+</ul>
+<h4>Concepts</h4>
+<ul>
+<li><a href="/docs/architecture/">Architecture</a></li>
+<li><a href="/docs/object-stores/">Object stores</a></li>
+<li><a href="/docs/compatibility/">Cloudflare compatibility</a></li>
+</ul>
+<h4>Guides</h4>
+<ul>
+<li><a href="/docs/deploying/">Deploying updates</a></li>
+<li><a href="/docs/autoscaling/">Autoscaling</a></li>
+<li><a href="/docs/networking/">Networking &amp; ingress</a></li>
+<li><a href="/docs/security/">Security</a></li>
+<li><a href="/docs/observability/" aria-current="page">Observability</a></li>
+</ul>
+<h4>Reference</h4>
+<ul>
+<li><a href="/docs/workerapp/">WorkerApp reference</a></li>
+<li><a href="/docs/operator-configuration/">Operator configuration</a></li>
+</ul>
+</div>
+</details>
+<script>if(matchMedia("(max-width: 56rem)").matches)document.currentScript.parentElement.querySelector("details").removeAttribute("open")</script>
+</nav>
+<main class="docs-main" id="main">
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a> &rsaquo; <a href="/docs/">Docs</a> &rsaquo; <span>Observability</span></nav>
+<h1>Observability</h1>
+<p class="lead">
+Two planes, both per-tenant by construction: celld's built-in tracing (spans and logs,
+written to the tenant's own bucket prefix or your OTLP collector) and the operator's
+Prometheus metrics (capacity and health, derived from each pod's <code>/state</code>).
+</p>
+
+<h2 id="telemetry"><a class="anchor" href="#telemetry">Traces and logs</a></h2>
+<p>One field enables celld's telemetry for the fleet:</p>
+<pre class="code"><code><span class="k">telemetry:</span>
+  <span class="k">enabled:</span> <span class="n">true</span>       <span class="c"># sets CELLD_OTEL=1 (the WorkerApp default)</span>
+  <span class="k">retention:</span> <span class="s">30d</span>      <span class="c"># bucket sink only; "none" defers to bucket lifecycle rules</span>
+  <span class="c"># sink: otlp        # or send OTLP/HTTP to a collector instead:</span>
+  <span class="c"># otlpEndpoint: http://otel-collector.monitoring.svc:4318</span></code></pre>
+<div class="tbl-wrap"><table>
+<tr><th>Sink</th><th>Behavior</th></tr>
+<tr><td><code>bucket</code> (default)</td><td>Parquet traces and logs under the fleet bucket's <code>telemetry/</code> prefix, partitioned by node and hour. DuckDB queries them directly — no services to run. celld deletes files older than <code>retention</code>.</td></tr>
+<tr><td><code>otlp</code></td><td>OTLP/HTTP protobuf to the collector at <code>otlpEndpoint</code> (sets <code>OTEL_EXPORTER_OTLP_ENDPOINT</code>). Setting <code>otlpEndpoint</code> without a sink selects <code>otlp</code> automatically.</td></tr>
+</table></div>
+<p>What celld emits:</p>
+<ul>
+<li>A span per stateless-Worker request, per cell event (fetch, alarm, RPC, WebSocket
+message), per outbound <code>fetch()</code>, and per cell start — with queue waits and
+durability facts.</li>
+<li>Every <code>console.log</code> line as a log record carrying the trace and span ID of
+the handler that wrote it; the correlation survives <code>await</code>.</li>
+<li>W3C <code>traceparent</code> read on incoming requests and sent on outbound fetches —
+so your gateway's OpenTelemetry tracing joins edge spans to Worker and Durable Object
+spans with zero app code.</li>
+</ul>
+<div class="note">
+<p>Under load, telemetry sheds before requests do — and celld counts what it sheds. The
+trace schema is <code>v0-unstable</code>; column names can change before a stable
+release.</p>
+</div>
+
+<h3 id="duckdb"><a class="anchor" href="#duckdb">Querying the bucket sink</a></h3>
+<pre class="code"><code>INSTALL httpfs; LOAD httpfs;
+CREATE SECRET r2 (TYPE s3, KEY_ID '…', SECRET '…',
+                  ENDPOINT 'ACCOUNT.r2.cloudflarestorage.com', URL_STYLE 'path');
+SELECT name, count(*), avg(duration_us)/1000 AS avg_ms
+FROM 's3://platform-cells/apps/chat/telemetry/traces/*/*/*/*/*/*.parquet'
+GROUP BY name ORDER BY 2 DESC;</code></pre>
+<p>
+For near-live queries, lower <code>CELLD_OTEL_FLUSH_MS</code> — but run the hourly
+compaction job first (a DuckDB <code>COPY</code> that rewrites one past hour of small
+files into one zstd Parquet, on a maintenance node — celld does not compact its own
+files), or queries grow slow within hours.
+</p>
+
+<h2 id="metrics"><a class="anchor" href="#metrics">Fleet metrics</a></h2>
+<p>
+celld has no metrics endpoint yet, so the operator polls each pod's internal
+<code>/state</code> (leader-only, every <code>--state-poll-interval</code>, default 15s)
+and exports Prometheus series per WorkerApp and per pod:
+</p>
+<div class="tbl-wrap"><table>
+<tr><th>Metric</th><th>Meaning</th></tr>
+<tr><td><code>celld_resident_cells</code></td><td>Occupied (resident) cells per pod</td></tr>
+<tr><td><code>celld_resident_cell_utilization</code></td><td>occupied / maxResidentCells (0..1) — the primary capacity signal</td></tr>
+<tr><td><code>celld_restoring</code></td><td>Cold activations in flight</td></tr>
+<tr><td><code>celld_evicting</code></td><td>Cells being evicted</td></tr>
+<tr><td><code>celld_shedding</code></td><td>1 while pressure-shedding — hard out-of-capacity</td></tr>
+<tr><td><code>celld_state_up</code></td><td>1 if <code>/state</code> answered the last poll</td></tr>
+</table></div>
+<p>
+The same series drive <a href="/docs/autoscaling/">autoscaling</a>, dashboards, and
+alerting. Request rates and latencies are derived from spans (or from your gateway's
+metrics) until upstream ships a native metrics signal.
+</p>
+
+<h2 id="status"><a class="anchor" href="#status">At-a-glance status</a></h2>
+<pre class="code"><code><span class="p">$</span> kubectl get workerapps -A
+NAMESPACE     NAME    PHASE        APP          READY   RESTORING
+tenant-acme   chat    Ready        sha-def456   3       0
+tenant-beta   docs    RollingOut   sha-11aa22   2       1</code></pre>
+<p>
+<code>PHASE</code>, the rolled-out version, ready pods, and fleet-wide restoring count are
+printer columns on the CRD; conditions carry the detail. See the
+<a href="/docs/workerapp/#status">WorkerApp status reference</a>.
+</p>
+
+<nav class="pager" aria-label="Docs pages"><a class="prev" href="/docs/security/" rel="prev"><span class="dir">&larr; Previous</span>Security</a><a class="next" href="/docs/workerapp/" rel="next"><span class="dir">Next &rarr;</span>WorkerApp reference</a></nav>
+</main>
+</div>
+
+<footer class="site-foot">
+  <div class="container">
+    <div class="cols">
+      <div>
+        <a class="brand" href="/"><svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+          celld-operator
+        </a>
+        <p style="margin:.6rem 0 0; font-size:.88rem">
+          A Kubernetes control plane for celld: self-hosted Cloudflare Workers and
+          Durable Objects on infrastructure you own.
+        </p>
+      </div>
+      <div>
+        <h4>Documentation</h4>
+        <ul>
+          <li><a href="/docs/">Introduction</a></li>
+          <li><a href="/docs/quick-start/">Quick start</a></li>
+          <li><a href="/docs/workerapp/">WorkerApp reference</a></li>
+          <li><a href="/docs/compatibility/">Cloudflare compatibility</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/ezgamehost/celld-operator" rel="external">GitHub</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/DESIGN.md" rel="external">Design document</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/SECURITY.md" rel="external">Security policy</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/CONTRIBUTING.md" rel="external">Contributing</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Upstream</h4>
+        <ul>
+          <li><a href="https://celld.dev" rel="external">celld.dev</a></li>
+          <li><a href="https://github.com/denoland/celld" rel="external">denoland/celld</a></li>
+          <li><a href="https://celld.dev/docs" rel="external">celld documentation</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="legal">
+      celld-operator is an independent open-source project released under the
+      Apache License 2.0. celld is a project of Deno Land Inc. Cloudflare, Cloudflare
+      Workers, and Durable Objects are trademarks of Cloudflare, Inc. This project is
+      not affiliated with, sponsored by, or endorsed by Deno Land or Cloudflare.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

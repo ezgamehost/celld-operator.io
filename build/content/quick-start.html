@@ -1,0 +1,111 @@
+<h1>Quick start</h1>
+<p class="lead">
+From a standard Wrangler project to a converged, routed, autoscaled celld fleet.
+This walkthrough assumes the <a href="/docs/install/">operator is installed</a> and you
+have a <a href="/docs/object-stores/">qualified bucket</a> (Cloudflare R2 in the examples).
+</p>
+
+<h2 id="before"><a class="anchor" href="#before">Before you begin</a></h2>
+<p>You need the <code>celld</code> CLI and esbuild on your workstation or CI runner to
+publish deployments (the operator never touches your build):</p>
+<pre class="code"><code><span class="p">$</span> curl -fsSL https://celld.dev/install.sh | sh   <span class="c"># verifiable with gh attestation verify</span></code></pre>
+<p>
+Worker projects built by <code>celld deploy</code> need
+<a href="https://esbuild.github.io" rel="external">esbuild</a> on <code>PATH</code>;
+asset-only projects do not.
+</p>
+
+<h2 id="publish"><a class="anchor" href="#publish">1. Deploy your Worker to the bucket</a></h2>
+<p>
+A standard Wrangler project: <code>wrangler.jsonc</code> (or <code>.json</code> —
+<code>wrangler.toml</code> is not accepted), module Workers, Durable Object bindings,
+static assets. Publish it to the fleet's bucket prefix:
+</p>
+<pre class="code"><code><span class="p">$</span> celld deploy . --bucket s3://platform-cells/apps/chat \
+    --endpoint https://ACCOUNT.r2.cloudflarestorage.com --region auto</code></pre>
+<p>
+celld validates the config with a strict key allowlist — an unsupported key
+(<code>kv_namespaces</code>, <code>routes</code>, <code>triggers</code>, …) stops the
+deploy with an error naming the key. Nothing fails silently at runtime. Use
+<code>celld deploy . --dry-run</code> in CI to catch this on pull requests.
+</p>
+
+<h2 id="secrets"><a class="anchor" href="#secrets">2. Provide variables and secrets (optional)</a></h2>
+<p>
+Worker <code>vars</code> and secrets come from a Kubernetes Secret with a
+<code>vars.env</code> key in <code>NAME=value</code> lines, passed to celld via
+<code>CELLD_VARS_FILE</code> — never baked into bundles:
+</p>
+<pre class="code"><code><span class="p">$</span> kubectl create secret generic chat-vars -n tenant-acme \
+    --from-literal=vars.env=<span class="s">'OPENAI_API_KEY=sk-…'</span></code></pre>
+
+<h2 id="create"><a class="anchor" href="#create">3. Create the WorkerApp</a></h2>
+<pre class="code"><code><span class="k">apiVersion:</span> <span class="s">platform.ezghcloud.com/v1alpha1</span>
+<span class="k">kind:</span> <span class="s">WorkerApp</span>
+<span class="k">metadata:</span>
+  <span class="k">name:</span> <span class="s">chat</span>
+  <span class="k">namespace:</span> <span class="s">tenant-acme</span>
+<span class="k">spec:</span>
+  <span class="k">hostnames:</span> <span class="s">["chat.acme.example.com"]</span>  <span class="c"># routed via the shared Gateway</span>
+  <span class="k">appVersion:</span> <span class="s">sha-abc123</span>                <span class="c"># which bucket deployment is live</span>
+  <span class="k">celld:</span>
+    <span class="k">image:</span> <span class="s">ghcr.io/denoland/celld:v0.2.0</span>
+    <span class="k">updateStrategy:</span> <span class="s">Rolling</span>            <span class="c"># Recreate for non-rolling celld upgrades</span>
+  <span class="k">replicas:</span> <span class="n">3</span>
+  <span class="k">bucket:</span>
+    <span class="k">name:</span> <span class="s">s3://platform-cells/apps/chat</span> <span class="c"># bucket + per-app prefix</span>
+    <span class="k">endpoint:</span> <span class="s">https://ACCOUNT.r2.cloudflarestorage.com</span>
+    <span class="k">region:</span> <span class="s">auto</span>
+    <span class="k">credentialsFrom:</span>
+      <span class="k">iamRole:</span> <span class="s">arn:aws:iam::123456789012:role/celld-chat</span>  <span class="c"># IRSA; or secretRef</span>
+  <span class="k">resources:</span>
+    <span class="k">memoryGi:</span> <span class="n">8</span>                        <span class="c"># ~1,000 resident cells per 8 GiB</span>
+    <span class="k">maxResidentCells:</span> <span class="n">1000</span>
+  <span class="k">vars:</span>
+    <span class="k">secretRef:</span> <span class="s">chat-vars</span>
+  <span class="k">websockets:</span> <span class="n">true</span>                     <span class="c"># long idle timeouts, sticky-friendly</span>
+  <span class="k">autoscaling:</span>
+    <span class="k">enabled:</span> <span class="n">true</span>
+    <span class="k">minReplicas:</span> <span class="n">3</span>
+    <span class="k">maxReplicas:</span> <span class="n">10</span>
+    <span class="k">targets:</span>
+      <span class="k">residentCellUtilization:</span> <span class="n">70</span>      <span class="c"># % of maxResidentCells, fleet average</span>
+  <span class="k">telemetry:</span>
+    <span class="k">enabled:</span> <span class="n">true</span>                      <span class="c"># Parquet traces in the bucket by default</span>
+    <span class="k">retention:</span> <span class="s">30d</span></code></pre>
+<pre class="code"><code><span class="p">$</span> kubectl apply -f workerapp.yaml</code></pre>
+
+<h2 id="watch"><a class="anchor" href="#watch">4. Watch it converge</a></h2>
+<pre class="code"><code><span class="p">$</span> kubectl get workerapps -n tenant-acme
+NAME   PHASE   APP          READY   RESTORING   AGE
+chat   Ready   sha-abc123   3       0           2m</code></pre>
+<p>
+If something is missing (Gateway API CRDs, KEDA, credentials), the resource stays
+functional where it can and reports the gap as a condition:
+</p>
+<pre class="code"><code><span class="p">$</span> kubectl describe workerapp chat -n tenant-acme
+…
+Conditions:
+  Type               Status   Reason            Message
+  Available          True     FleetReady        3/3 pods ready, restoring=0
+  IngressReady       True     RouteAccepted     chat.acme.example.com → chat-celld:8080
+  AutoscalingReady   True     ScaledObjectSet   scaling 3–10 on residentCellUtilization</code></pre>
+
+<h2 id="request"><a class="anchor" href="#request">5. Send a request</a></h2>
+<pre class="code"><code><span class="p">$</span> curl https://chat.acme.example.com/rooms/lobby</code></pre>
+<p>
+No hostnames? Internal-only apps need no ingress at all — in-cluster consumers reach the
+fleet at <code>chat-celld.tenant-acme.svc:8080</code>.
+</p>
+
+<h2 id="update"><a class="anchor" href="#update">6. Ship an update</a></h2>
+<pre class="code"><code><span class="p">$</span> celld deploy . --bucket s3://platform-cells/apps/chat …   <span class="c"># publish sha-def456</span>
+<span class="p">$</span> kubectl patch workerapp chat -n tenant-acme --type merge \
+    -p <span class="s">'{"spec":{"appVersion":"sha-def456"}}'</span>                <span class="c"># roll the fleet</span></code></pre>
+<p>
+The operator runs a gated rolling update — one pod at a time, stepping only when the
+whole fleet reports <code>restoring=0</code> — so the rollout is invisible to clients.
+Prefer <code>celld deploy</code> to be the whole story? Set
+<code>appVersion: auto</code>. Both flows are covered in
+<a href="/docs/deploying/">Deploying updates</a>.
+</p>

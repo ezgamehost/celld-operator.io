@@ -216,33 +216,119 @@ chat   <span class="ok-t">Ready</span>   a3f9c1d2e4b57081   3       0</pre>
 </section>
 
 <section class="section">
-  <div class="container split">
-    <div>
+  <div class="container">
+    <div class="section-head">
       <span class="eyebrow">One resource</span>
       <h2>Declare the app. Get the whole fleet.</h2>
       <p>
         Hostnames, the expected deployment, the bucket, sizing, and scaling targets. The
-        operator validates the spec against your allowlists, reconciles every object
-        below, and reports fleet health, per-pod deployment versions, and rollout progress
-        back in <code>status</code>.
+        operator validates the spec against your allowlists, then reconciles every object
+        below and wires them together: traffic flows from the route to the serving
+        Service to the pods, peers find each other through the headless Service, the
+        ServiceAccount carries the bucket identity, and every policy selects the same
+        pods. Status reports fleet health, per-pod deployment versions, and rollout
+        progress. <a href="/docs/architecture/#reconciled">What each object does →</a>
       </p>
-      <p>
-        Integrations are optional: without Gateway API, Istio, or KEDA, the fleet keeps
-        serving and the gap shows up as a condition, not a crash loop.
-      </p>
-      <p><a href="/docs/workerapp/">Full WorkerApp reference →</a></p>
     </div>
-    <div class="tree" aria-label="Objects reconciled for one WorkerApp">
-<div><span class="root">WorkerApp</span> <span class="nm">tenant-acme/chat</span></div>
-<div><span class="br">├─</span> <span class="kind">ServiceAccount</span>       <span class="nm">chat-celld</span></div>
-<div><span class="br">├─</span> <span class="kind">Service</span>              <span class="nm">chat-celld-internal</span><span class="opt">headless · :8081</span></div>
-<div><span class="br">├─</span> <span class="kind">Service</span>              <span class="nm">chat-celld</span><span class="opt">:8080</span></div>
-<div><span class="br">├─</span> <span class="kind">NetworkPolicy</span>        <span class="nm">chat-celld</span></div>
-<div><span class="br">├─</span> <span class="kind">PodDisruptionBudget</span>  <span class="nm">chat-celld</span></div>
-<div><span class="br">├─</span> <span class="kind">StatefulSet</span>          <span class="nm">chat-celld</span><span class="opt">partition-gated</span></div>
-<div><span class="br">├─</span> <span class="kind">HTTPRoute</span>            <span class="nm">chat-celld</span><span class="opt">with hostnames</span></div>
-<div><span class="br">├─</span> <span class="kind">AuthorizationPolicy</span>  <span class="nm">chat-celld-internal</span><span class="opt">with Istio</span></div>
-<div><span class="br">└─</span> <span class="kind">ScaledObject</span>         <span class="nm">chat-celld</span><span class="opt">with autoscaling</span></div>
+    <div class="diagram graph">
+      <svg viewBox="0 0 1060 540" role="img" aria-label="Object graph for one WorkerApp. The WorkerApp owns every object. An HTTPRoute sends traffic to the chat-celld Service on port 8080, which selects the fleet pods of the chat-celld StatefulSet. The headless chat-celld-internal Service gives pods stable peer DNS on port 8081. Pods run as the chat-celld ServiceAccount, whose cloud identity reaches the bucket. A KEDA ScaledObject scales the StatefulSet. The NetworkPolicy, Istio AuthorizationPolicy, and PodDisruptionBudget all select the fleet pods.">
+  <defs>
+    <marker id="g-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0 0 L10 5 L0 10 z"/></marker>
+    <marker id="g-aha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah-a" d="M0 0 L10 5 L0 10 z"/></marker>
+  </defs>
+
+  <!-- owner -->
+  <rect class="box-accent" x="390" y="14" width="280" height="50" rx="10"/>
+  <text class="t" x="530" y="36" text-anchor="middle" font-size="14.5" font-weight="600">WorkerApp</text>
+  <text class="t-fm" x="530" y="54" text-anchor="middle" font-size="11">tenant-acme/chat</text>
+  <line class="ln-a" x1="530" y1="64" x2="530" y2="90" marker-end="url(#g-aha)"/>
+  <text class="t-f" x="542" y="82" font-size="11">reconciles and owns</text>
+
+  <rect class="box-soft" x="20" y="94" width="860" height="430" rx="14" stroke-dasharray="5 5"/>
+  <text class="t-fm" x="38" y="118" font-size="11">ownerReferences → WorkerApp chat</text>
+
+  <!-- traffic path -->
+  <rect class="box box-opt" x="44" y="146" width="160" height="58" rx="9"/>
+  <text class="t" x="124" y="171" text-anchor="middle" font-size="13.5" font-weight="600">HTTPRoute</text>
+  <text class="t-fm" x="124" y="190" text-anchor="middle" font-size="10.5">parentRef infra/edge</text>
+
+  <rect class="box" x="254" y="146" width="168" height="58" rx="9"/>
+  <text class="t" x="338" y="171" text-anchor="middle" font-size="13.5" font-weight="600">Service</text>
+  <text class="t-fm" x="338" y="190" text-anchor="middle" font-size="10.5">chat-celld :8080</text>
+  <line class="ln" x1="204" y1="175" x2="250" y2="175" marker-end="url(#g-ah)"/>
+  <text class="t-f" x="227" y="166" text-anchor="middle" font-size="10">backend</text>
+
+  <rect class="box" x="254" y="300" width="168" height="58" rx="9"/>
+  <text class="t" x="338" y="325" text-anchor="middle" font-size="13.5" font-weight="600">Service <tspan class="t-f" font-weight="400" font-size="11">headless</tspan></text>
+  <text class="t-fm" x="338" y="344" text-anchor="middle" font-size="10.5">chat-celld-internal :8081</text>
+
+  <!-- the fleet -->
+  <rect class="box" x="480" y="134" width="210" height="254" rx="12"/>
+  <text class="t" x="498" y="160" font-size="13.5" font-weight="600">StatefulSet</text>
+  <text class="t-fm" x="584" y="160" font-size="10.5">chat-celld</text>
+  <rect class="box-accent" x="498" y="176" width="174" height="40" rx="8"/>
+  <text class="t-m" x="585" y="201" text-anchor="middle" font-size="12">pod chat-celld-0</text>
+  <rect class="box-accent" x="498" y="228" width="174" height="40" rx="8"/>
+  <text class="t-m" x="585" y="253" text-anchor="middle" font-size="12">pod chat-celld-1</text>
+  <rect class="box-accent" x="498" y="280" width="174" height="40" rx="8"/>
+  <text class="t-m" x="585" y="305" text-anchor="middle" font-size="12">pod chat-celld-2</text>
+  <text class="t-f" x="585" y="346" text-anchor="middle" font-size="10.5">partition owned by the</text>
+  <text class="t-f" x="585" y="362" text-anchor="middle" font-size="10.5">gated rollout controller</text>
+
+  <line class="ln" x1="422" y1="175" x2="476" y2="175" marker-end="url(#g-ah)"/>
+  <text class="t-f" x="449" y="166" text-anchor="middle" font-size="10">selects</text>
+  <text class="t-f" x="449" y="192" text-anchor="middle" font-size="10">all pods</text>
+  <line class="ln" x1="422" y1="316" x2="476" y2="316" marker-end="url(#g-ah)"/>
+  <text class="t-f" x="449" y="307" text-anchor="middle" font-size="10">peer DNS</text>
+  <text class="t-f" x="449" y="333" text-anchor="middle" font-size="10">all pods</text>
+  <line class="ln" x1="480" y1="376" x2="426" y2="350" marker-end="url(#g-ah)"/>
+  <text class="t-fm" x="418" y="398" font-size="10">serviceName</text>
+
+  <!-- identity and scaling -->
+  <rect class="box box-opt" x="726" y="134" width="134" height="58" rx="9"/>
+  <text class="t" x="793" y="159" text-anchor="middle" font-size="13.5" font-weight="600">ScaledObject</text>
+  <text class="t-fm" x="793" y="178" text-anchor="middle" font-size="10.5">KEDA</text>
+  <line class="ln" x1="726" y1="163" x2="694" y2="163" marker-end="url(#g-ah)"/>
+  <text class="t-f" x="708" y="154" text-anchor="middle" font-size="10">scales</text>
+
+  <rect class="box" x="726" y="244" width="134" height="58" rx="9"/>
+  <text class="t" x="793" y="269" text-anchor="middle" font-size="13.5" font-weight="600">ServiceAccount</text>
+  <text class="t-fm" x="793" y="288" text-anchor="middle" font-size="10.5">chat-celld</text>
+  <line class="ln" x1="690" y1="273" x2="722" y2="273" marker-end="url(#g-ah)"/>
+  <text class="t-f" x="708" y="264" text-anchor="middle" font-size="10">runs as</text>
+
+  <!-- bucket, outside the cluster -->
+  <path class="box" d="M914 250 v100 a62 12 0 0 0 124 0 v-100"/>
+  <ellipse class="box-soft" cx="976" cy="250" rx="62" ry="12"/>
+  <text class="t" x="976" y="300" text-anchor="middle" font-size="13.5" font-weight="600">bucket</text>
+  <text class="t-fm" x="976" y="318" text-anchor="middle" font-size="10">…/apps/chat</text>
+  <line class="ln" x1="860" y1="273" x2="910" y2="285" marker-end="url(#g-ah)"/>
+  <text class="t-f" x="886" y="232" text-anchor="middle" font-size="10">IRSA / workload</text>
+  <text class="t-f" x="886" y="245" text-anchor="middle" font-size="10">identity</text>
+
+  <!-- policies select the pods -->
+  <rect class="box" x="300" y="440" width="176" height="58" rx="9"/>
+  <text class="t" x="388" y="465" text-anchor="middle" font-size="13.5" font-weight="600">NetworkPolicy</text>
+  <text class="t-fm" x="388" y="484" text-anchor="middle" font-size="10.5">:8081 fleet + operator</text>
+  <rect class="box box-opt" x="497" y="440" width="176" height="58" rx="9"/>
+  <text class="t" x="585" y="465" text-anchor="middle" font-size="13.5" font-weight="600">AuthorizationPolicy</text>
+  <text class="t-fm" x="585" y="484" text-anchor="middle" font-size="10.5">Istio · :8081 principals</text>
+  <rect class="box" x="694" y="440" width="166" height="58" rx="9"/>
+  <text class="t" x="777" y="465" text-anchor="middle" font-size="13.5" font-weight="600">PodDisruptionBudget</text>
+  <text class="t-fm" x="777" y="484" text-anchor="middle" font-size="10.5">maxUnavailable: 1</text>
+  <path class="ln ln-d" d="M388 440 C 388 410 520 410 540 392" marker-end="url(#g-ah)"/>
+  <line class="ln ln-d" x1="585" y1="440" x2="585" y2="392" marker-end="url(#g-ah)"/>
+  <path class="ln ln-d" d="M777 440 C 777 410 650 410 630 392" marker-end="url(#g-ah)"/>
+  <text class="t-f" x="600" y="420" font-size="10">select fleet pods</text>
+
+  <!-- legend -->
+  <line class="ln" x1="44" y1="452" x2="74" y2="452"/>
+  <text class="t-f" x="82" y="456" font-size="10.5">traffic or reference</text>
+  <line class="ln ln-d" x1="44" y1="474" x2="74" y2="474"/>
+  <text class="t-f" x="82" y="478" font-size="10.5">selects / applies to</text>
+  <rect class="box box-opt" x="46" y="488" width="26" height="16" rx="4"/>
+  <text class="t-f" x="82" y="500" font-size="10.5">created when enabled</text>
+</svg>
     </div>
   </div>
 </section>

@@ -347,18 +347,6 @@ img, svg { max-width: 100%; }
 .split h2 { margin-top: .75rem; font-size: clamp(1.6rem, 2.8vw, 2.1rem); letter-spacing: -0.035em; line-height: 1.15; }
 .split p { color: var(--muted); }
 
-/* reconciled-object tree */
-.tree {
-  font-family: var(--mono); font-size: .82rem; line-height: 1.95;
-  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 1.25rem 1.4rem; box-shadow: var(--shadow); overflow-x: auto; white-space: nowrap;
-}
-.tree .root { color: var(--fg); font-weight: 600; }
-.tree .br { color: var(--border-strong); }
-.tree .kind { color: var(--fg); }
-.tree .nm { color: var(--faint); }
-.tree .opt { color: var(--muted); font-size: .72rem; margin-left: .5rem; border: 1px solid var(--accent-line); border-radius: 999px; padding: 0 .45rem; }
-
 /* rollout steps */
 .steps { list-style: none; margin: 0; padding: 0; counter-reset: step; display: grid; gap: 0; }
 .steps li {
@@ -433,6 +421,9 @@ img, svg { max-width: 100%; }
 .diagram .ln-a { stroke: var(--accent-strong); fill: none; }
 .diagram .ah { fill: var(--faint); }
 .diagram .ah-a { fill: var(--accent-strong); }
+.diagram .ln-d { stroke-dasharray: 4 4; }
+.diagram .box-opt { stroke-dasharray: 5 4; }
+.diagram.graph svg { min-width: 48rem; }
 
 .cta-band {
   position: relative; overflow: hidden;

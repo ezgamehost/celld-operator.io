@@ -1,43 +1,52 @@
 <h1>Quick start</h1>
 <p class="lead">
-From a standard Wrangler project to a converged, routed, autoscaled celld fleet.
-This walkthrough assumes the <a href="/docs/install/">operator is installed</a> and you
-have a <a href="/docs/object-stores/">qualified bucket</a> (Cloudflare R2 in the examples).
+From a standard Wrangler project to a converged, routed celld fleet. This walkthrough
+assumes the <a href="/docs/install/">operator is installed</a> and you have a
+<a href="/docs/object-stores/">qualified bucket</a> (Cloudflare R2 in the examples).
 </p>
 
 <h2 id="before"><a class="anchor" href="#before">Before you begin</a></h2>
-<p>You need the <code>celld</code> CLI and esbuild on your workstation or CI runner to
-publish deployments (the operator never touches your build):</p>
+<p>You need the <code>celld</code> CLI on your workstation or CI runner to publish
+deployments; the operator never touches your build:</p>
 <pre class="code"><code><span class="p">$</span> curl -fsSL https://celld.dev/install.sh | sh   <span class="c"># verifiable with gh attestation verify</span></code></pre>
 <p>
-Worker projects built by <code>celld deploy</code> need
-<a href="https://esbuild.github.io" rel="external">esbuild</a> on <code>PATH</code>;
-asset-only projects do not.
+Projects with Worker code also need <a href="https://esbuild.github.io" rel="external">esbuild</a>
+on <code>PATH</code>; asset-only projects do not.
 </p>
 
 <h2 id="publish"><a class="anchor" href="#publish">1. Deploy your Worker to the bucket</a></h2>
 <p>
 A standard Wrangler project: <code>wrangler.jsonc</code> (or <code>.json</code>;
-<code>wrangler.toml</code> is not accepted), module Workers, Durable Object bindings,
-static assets. Publish it to the fleet's bucket prefix:
+<code>wrangler.toml</code> is not accepted), module Workers, Durable Objects, and the
+bindings celld supports. Worker variables belong in the project's own
+<code>vars</code>: celld v0.5 and newer read them from the deployment, not from the
+cluster. Publish to the fleet's bucket prefix:
 </p>
 <pre class="code"><code><span class="p">$</span> celld deploy . --bucket s3://platform-cells/apps/chat \
-    --endpoint https://ACCOUNT.r2.cloudflarestorage.com --region auto</code></pre>
+    --endpoint https://ACCOUNT.r2.cloudflarestorage.com --region auto
+…
+Current Version ID: a3f9c1d2e4b57081</code></pre>
 <p>
-celld validates the config with a strict key allowlist: an unsupported key
-(<code>kv_namespaces</code>, <code>routes</code>, <code>triggers</code>, …) stops the
-deploy with an error naming the key, so nothing fails silently at runtime. Use
-<code>celld deploy . --dry-run</code> in CI to catch this on pull requests.
+celld validates the config with a strict top-level key allowlist: an unsupported key
+(<code>routes</code>, for example) stops the deploy with an error naming the key, so
+nothing fails silently at runtime. Run <code>celld deploy . --dry-run</code> in CI to catch
+this on pull requests.
 </p>
 
-<h2 id="secrets"><a class="anchor" href="#secrets">2. Provide variables and secrets (optional)</a></h2>
+<h2 id="allow"><a class="anchor" href="#allow">2. Allow the fleet's endpoint and identity</a></h2>
 <p>
-Worker <code>vars</code> and secrets come from a Kubernetes Secret with a
-<code>vars.env</code> key in <code>NAME=value</code> lines, passed to celld via
-<code>CELLD_VARS_FILE</code>, never baked into bundles:
+The operator only accepts images, cloud identities, and bucket endpoints that an
+administrator has allowlisted. For this example, the R2 endpoint and the IAM role must
+appear in the operator's values:
 </p>
-<pre class="code"><code><span class="p">$</span> kubectl create secret generic chat-vars -n tenant-acme \
-    --from-literal=vars.env=<span class="s">'OPENAI_API_KEY=sk-…'</span></code></pre>
+<pre class="code"><code><span class="k">operator:</span>
+  <span class="k">allowedImagePrefixes:</span> <span class="s">["ghcr.io/denoland/celld:"]</span>   <span class="c"># the default</span>
+  <span class="k">allowedIAMRoles:</span> <span class="s">["arn:aws:iam::123456789012:role/celld-chat"]</span>
+  <span class="k">allowedBucketEndpoints:</span> <span class="s">["https://ACCOUNT.r2.cloudflarestorage.com"]</span></code></pre>
+<p>
+An AWS S3 bucket needs no endpoint entry. A WorkerApp that misses the allowlist reports
+<code>SpecValid: False</code> and the operator creates nothing for it.
+</p>
 
 <h2 id="create"><a class="anchor" href="#create">3. Create the WorkerApp</a></h2>
 <pre class="code"><code><span class="k">apiVersion:</span> <span class="s">celld-operator.io/v1alpha1</span>
@@ -49,11 +58,11 @@ Worker <code>vars</code> and secrets come from a Kubernetes Secret with a
   <span class="k">hostnames:</span> <span class="s">["chat.acme.example.com"]</span>  <span class="c"># routed via the shared Gateway</span>
   <span class="k">appVersion:</span> <span class="s">a3f9c1d2e4b57081</span>          <span class="c"># the Version ID celld deploy printed</span>
   <span class="k">celld:</span>
-    <span class="k">image:</span> <span class="s">ghcr.io/denoland/celld:v0.2.0</span>
+    <span class="k">image:</span> <span class="s">ghcr.io/denoland/celld:v0.6.2</span>
     <span class="k">updateStrategy:</span> <span class="s">Rolling</span>            <span class="c"># Recreate for non-rolling celld upgrades</span>
   <span class="k">replicas:</span> <span class="n">3</span>
   <span class="k">bucket:</span>
-    <span class="k">name:</span> <span class="s">s3://platform-cells/apps/chat</span> <span class="c"># bucket + per-app prefix</span>
+    <span class="k">name:</span> <span class="s">s3://platform-cells/apps/chat</span> <span class="c"># bucket + per-app prefix; immutable</span>
     <span class="k">endpoint:</span> <span class="s">https://ACCOUNT.r2.cloudflarestorage.com</span>
     <span class="k">region:</span> <span class="s">auto</span>
     <span class="k">credentialsFrom:</span>
@@ -61,43 +70,43 @@ Worker <code>vars</code> and secrets come from a Kubernetes Secret with a
   <span class="k">resources:</span>
     <span class="k">memoryGi:</span> <span class="n">8</span>                        <span class="c"># ~1,000 resident cells per 8 GiB</span>
     <span class="k">maxResidentCells:</span> <span class="n">1000</span>
-  <span class="k">vars:</span>
-    <span class="k">secretRef:</span> <span class="s">chat-vars</span>
-  <span class="k">websockets:</span> <span class="n">true</span>                     <span class="c"># long idle timeouts, sticky-friendly</span>
-  <span class="k">autoscaling:</span>
-    <span class="k">enabled:</span> <span class="n">true</span>
-    <span class="k">minReplicas:</span> <span class="n">3</span>
-    <span class="k">maxReplicas:</span> <span class="n">10</span>
-    <span class="k">targets:</span>
-      <span class="k">residentCellUtilization:</span> <span class="n">70</span>      <span class="c"># % of maxResidentCells, fleet average</span>
+  <span class="k">durability:</span> <span class="s">bucket</span>                   <span class="c"># the default; fleet needs storage + 3 replicas</span>
+  <span class="k">websockets:</span> <span class="n">true</span>                     <span class="c"># long edge timeouts, slow scale-down</span>
   <span class="k">telemetry:</span>
     <span class="k">enabled:</span> <span class="n">true</span>                      <span class="c"># Parquet traces in the bucket by default</span>
     <span class="k">retention:</span> <span class="s">30d</span></code></pre>
 <pre class="code"><code><span class="p">$</span> kubectl apply -f workerapp.yaml</code></pre>
+<p>
+The image tag must carry a numeric <code>major.minor.patch</code> version, even when
+digest-pinned: the operator reads it to decide which upgrades can roll. Autoscaling is
+off here; turn it on once KEDA is installed (see <a href="/docs/autoscaling/">Autoscaling</a>).
+</p>
 
 <h2 id="watch"><a class="anchor" href="#watch">4. Watch it converge</a></h2>
 <pre class="code"><code><span class="p">$</span> kubectl get workerapps -n tenant-acme
 NAME   PHASE   APP                READY   RESTORING   AGE
 chat   Ready   a3f9c1d2e4b57081   3       0           2m</code></pre>
 <p>
-If something is missing (Gateway API CRDs, KEDA, credentials), the resource stays
-functional where it can and reports the gap as a condition:
+<code>APP</code> fills in only when every pod reports that it serves the expected
+deployment with nothing draining or swapping. If an optional integration is missing, the
+fleet keeps serving where it can and reports the gap as a condition:
 </p>
 <pre class="code"><code><span class="p">$</span> kubectl describe workerapp chat -n tenant-acme
 …
 Conditions:
   Type                     Status   Reason
-  Available                True     Ready
+  SpecValid                True     Validated
   BucketCredentialsReady   True     Configured
-  DeployTrackingReady      True     Tracking
-  IngressReady             True     RouteReconciled
+  IngressReady             True     RouteObserved
   MeshPolicyReady          False    IstioUnavailable
-  AutoscalingReady         False    KEDAUnavailable</code></pre>
+  FleetStateReady          True     Observed
+  Available               True     Ready
+  Progressing              False    Ready
+  Degraded                 False    Ready</code></pre>
 <p>
-A missing integration is reported, not fatal: here Istio and KEDA are absent, so the
-NetworkPolicy alone guards the internal listener and <code>spec.autoscaling</code> has
-no effect — the fleet still serves. Reasons are machine-readable strings; only the
-False conditions carry an explanatory message.
+Here Istio is absent, so the NetworkPolicy alone guards the internal listener; the fleet
+still serves. <code>IngressReady</code> is <code>True</code> only when the route is
+accepted, its backend resolves, and the Gateway reports itself programmed.
 </p>
 
 <h2 id="request"><a class="anchor" href="#request">5. Send a request</a></h2>
@@ -109,13 +118,16 @@ fleet at <code>chat-celld.tenant-acme.svc:8080</code>.
 
 <h2 id="update"><a class="anchor" href="#update">6. Ship an update</a></h2>
 <pre class="code"><code><span class="p">$</span> celld deploy . --bucket s3://platform-cells/apps/chat …
-Current Version ID: 7b21e0c4a9d3f508                              <span class="c"># celld prints this</span>
+Current Version ID: 7b21e0c4a9d3f508
 <span class="p">$</span> kubectl patch workerapp chat -n tenant-acme --type merge \
-    -p <span class="s">'{"spec":{"appVersion":"7b21e0c4a9d3f508"}}'</span>          <span class="c"># roll the fleet</span></code></pre>
+    -p <span class="s">'{"spec":{"appVersion":"7b21e0c4a9d3f508"}}'</span></code></pre>
 <p>
-The operator runs a gated rolling update (one pod at a time, stepping only when the
-whole fleet reports <code>restoring=0</code>), so the rollout is invisible to clients.
-Prefer <code>celld deploy</code> to be the whole story? Set
-<code>appVersion: auto</code>. Both flows are covered in
+celld v0.4 and newer poll the bucket pointer every 30 seconds and adopt the new
+deployment in place, so the fleet starts serving it without a restart. Bumping
+<code>appVersion</code> keeps the resource in step: by default the operator also runs a
+conservative gated restart (one pod at a time, stepping only when the whole fleet reports
+<code>restoring=0</code>), or none at all with <code>deploymentPolicy: InPlace</code>.
+Prefer <code>celld deploy</code> to be the whole story? Set <code>appVersion: auto</code>
+with a read-only tracking credential. Both flows are covered in
 <a href="/docs/deploying/">Deploying updates</a>.
 </p>

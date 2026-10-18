@@ -4,29 +4,34 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Object store requirements · celld-operator</title>
-<meta name="description" content="celld requires atomically enforced conditional writes and read-after-write consistency. Qualified stores, disqualified stores, and how to qualify your own.">
+<meta name="description" content="celld requires atomically enforced conditional writes, exact ranged reads, and read-after-write consistency. Qualified stores, S3/GCS/Azure dialects, and how to qualify your own.">
 <link rel="canonical" href="https://celld-operator.io/docs/object-stores/">
+<meta name="theme-color" content="#07090e">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap">
 <link rel="stylesheet" href="/assets/style.css">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="celld-operator">
 <meta property="og:title" content="Object store requirements">
-<meta property="og:description" content="celld requires atomically enforced conditional writes and read-after-write consistency. Qualified stores, disqualified stores, and how to qualify your own.">
+<meta property="og:description" content="celld requires atomically enforced conditional writes, exact ranged reads, and read-after-write consistency. Qualified stores, S3/GCS/Azure dialects, and how to qualify your own.">
 <meta property="og:url" content="https://celld-operator.io/docs/object-stores/">
 <meta property="og:image" content="https://celld-operator.io/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Object store requirements">
-<meta name="twitter:description" content="celld requires atomically enforced conditional writes and read-after-write consistency. Qualified stores, disqualified stores, and how to qualify your own.">
+<meta name="twitter:description" content="celld requires atomically enforced conditional writes, exact ranged reads, and read-after-write consistency. Qualified stores, S3/GCS/Azure dialects, and how to qualify your own.">
 <meta name="twitter:image" content="https://celld-operator.io/assets/og.png">
 <script type="application/ld+json">
 {
  "@context": "https://schema.org",
  "@type": "TechArticle",
  "headline": "Object store requirements",
- "description": "celld requires atomically enforced conditional writes and read-after-write consistency. Qualified stores, disqualified stores, and how to qualify your own.",
+ "description": "celld requires atomically enforced conditional writes, exact ranged reads, and read-after-write consistency. Qualified stores, S3/GCS/Azure dialects, and how to qualify your own.",
  "url": "https://celld-operator.io/docs/object-stores/",
+ "dateModified": "2026-10-18",
  "isPartOf": {
   "@type": "WebSite",
   "name": "celld-operator",
@@ -73,18 +78,19 @@
 <header class="site-head">
   <div class="container">
     <a class="brand" href="/">
-      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+      <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#07090e"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
       celld-operator
     </a>
     <nav class="site-nav" aria-label="Main">
-      <a href="/docs/">Docs</a>
+      <a href="/docs/" aria-current="page">Docs</a>
+      <a href="/docs/workerapp/">Reference</a>
       <a href="/docs/compatibility/">Compatibility</a>
-      <a href="https://celld.dev" rel="external">celld.dev</a>
-      <a class="gh" href="https://github.com/ezgamehost/celld-operator" rel="external">
-        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-        GitHub
-      </a>
+      <a href="https://celld.dev" rel="external">celld</a>
     </nav>
+    <div class="head-actions">
+      <a class="gh" href="https://github.com/ezgamehost/celld-operator" rel="external"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg><span>GitHub</span></a>
+      <a class="btn btn-primary btn-sm" href="/docs/quick-start/">Get started</a>
+    </div>
   </div>
 </header>
 
@@ -123,66 +129,79 @@
 <script>if(matchMedia("(max-width: 56rem)").matches)document.currentScript.parentElement.querySelector("details").removeAttribute("open")</script>
 </nav>
 <main class="docs-main" id="main">
-<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a> &rsaquo; <a href="/docs/">Docs</a> &rsaquo; <span>Object stores</span></nav>
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/docs/">Docs</a><span class="sep">/</span><span>Concepts</span><span class="sep">/</span><span>Object stores</span></nav>
 <h1>Object stores</h1>
 <p class="lead">
 The bucket is celld's control plane <em>and</em> durability root. It must enforce
-conditional writes atomically and read a write back immediately. A store that merely
-<em>accepts</em> the conditional headers without enforcing them fails late and silently,
-as two nodes owning one cell.
+conditional writes atomically, return exact byte ranges, and read a write back
+immediately. A store that merely <em>accepts</em> the conditional headers without
+enforcing them fails late and silently, as two nodes owning one cell.
 </p>
 
-<h2 id="contract"><a class="anchor" href="#contract">The fencing contract</a></h2>
-<p>celld requires three properties from the store:</p>
+<h2 id="contract"><a class="anchor" href="#contract">The storage contract</a></h2>
+<p>celld requires four properties from the store:</p>
 <ol>
-<li><strong>Conditional create</strong>: a write that fails when the object already exists
-(<code>If-None-Match: *</code> on S3-compatible stores).</li>
+<li><strong>Conditional create</strong>: a write that fails when the object already
+exists (<code>If-None-Match: *</code> on S3-compatible stores).</li>
 <li><strong>Conditional overwrite</strong>: a write that fails when the object changed
 since it was read (ETag compare-and-swap via <code>If-Match</code>; on GCS, the
 <code>x-goog-if-generation-match</code> precondition).</li>
-<li><strong>Read-after-write consistency</strong>: a completed write is visible to the
-next read.</li>
+<li><strong>Read-after-write consistency</strong>: a read after a successful write returns
+that write.</li>
+<li><strong>Ranged reads</strong>: a read returns exactly the requested byte range.</li>
 </ol>
 <p>
-How celld uses them: each cell has one ownership record naming the owner node and a
-fencing <em>epoch</em>. Acquiring a cell is a conditional write, so the store accepts
-exactly one winner. The replication stream itself uses plain writes — the epoch in the
-key is the fence, so a fenced node's writes land in a superseded prefix.
+Epoch GC (<code>CELLD_LTX_RETENTION_SECS</code>, off by default) additionally needs
+list-after-write consistency. The operator exposes no field for it.
+</p>
+
+<h3 id="mechanism"><a class="anchor" href="#mechanism">How celld uses it</a></h3>
+<p>
+Each cell has one <strong>ownership record</strong> naming the owner node's session and a
+fencing <em>epoch</em>. A node acquires a cell with a conditional create, or a
+compare-and-swap on an existing record, so the store admits exactly one winner, and
+every activation advances the epoch. The replicator copies each cell's SQLite data to
+<code>cells/&lt;cell&gt;/ltx/e&lt;epoch&gt;/</code> with plain writes: the epoch in the key
+is the fence, so a node that lost ownership can only write into a superseded prefix.
 </p>
 <p>
-Two further mechanisms turn that into the RPO=0 promise. The <strong>acknowledgement
-rule</strong>: a write is held until the replicator proves it reached the bucket, and
-only then does celld re-read the ownership record and acknowledge — and only if the
-record still names this node at this epoch. Because it is a read, not a clock
-comparison, a paused process or skewed clock cannot pass it. The <strong>epoch
-seal</strong>: the first activation to restore from an epoch writes
-<code>e&lt;epoch&gt;.seal.json</code> with a conditional create, fixing the highest
-transaction any later restore of that epoch may read; the first restorer wins, and if
-the seal write fails the activation fails. Without it, a fenced node's post-takeover
-appends could resurface in a later restore. A node that cannot reach the bucket cannot
-renew its lease, stops writing, and releases its residency: node failure is a normal
-input, not a recovery procedure.
+The <strong>acknowledgement rule</strong> holds every response until a durability proof
+covers the writes it can reveal. After a bucket proof, celld re-reads the ownership
+record and acknowledges only if it still names this node at this epoch; because it is a
+read, not a clock comparison, a paused process or a skewed clock cannot pass it. A fleet
+proof instead waits for follower nodes to fsync the write, and a takeover seals the
+prior owner's node-log session before it restores, so a stale owner cannot complete
+another fleet proof. A node that cannot renew its lease fences itself: node failure is a
+normal input, not a recovery procedure.
 </p>
 
 <h2 id="qualified"><a class="anchor" href="#qualified">Qualified and disqualified stores</a></h2>
 <div class="tbl-wrap"><table>
 <tr><th>Status</th><th>Stores</th></tr>
-<tr><td><span class="status-ok">Qualified</span></td><td>Amazon S3, Cloudflare R2, Tigris (S3 dialect) and Google Cloud Storage. celld's release tests run against R2; the AWS S3 path uses the same client and headers.</td></tr>
-<tr><td><span class="status-bad">Not qualified</span></td><td>MinIO community edition, Backblaze B2, Hetzner Object Storage, DigitalOcean Spaces. celld is <em>not correct</em> on these: two nodes can own one cell.</td></tr>
-<tr><td>Unproven</td><td>Young S3-compatible implementations. Treat as disqualified until you qualify them yourself with the checks below — a store may accept the conditional headers without enforcing them, which fails silently.</td></tr>
+<tr><td><span class="status-ok">Qualified</span></td><td>Amazon S3, Cloudflare R2, Tigris, Google Cloud Storage, and Azure Blob Storage. celld's release tests run against R2; the S3 path uses the same client and headers. Azure was qualified under an account key, a VM managed identity, and an AKS workload identity.</td></tr>
+<tr><td><span class="status-mid">Not for production</span></td><td>MinIO community edition: it passes the storage test but is not qualified for production. Avoid <code>RELEASE.2025-09-06T17-38-46Z</code>, which rejects the first deploy. Azurite is for local development only.</td></tr>
+<tr><td><span class="status-bad">Not qualified</span></td><td>Backblaze B2, Hetzner Object Storage, DigitalOcean Spaces. They do not implement the required conditional writes: two nodes can own one cell.</td></tr>
+<tr><td>Unproven</td><td>Anything else. Treat it as disqualified until you qualify it yourself with the checks below.</td></tr>
+</table></div>
+
+<h2 id="dialects"><a class="anchor" href="#dialects">Dialects and credentials</a></h2>
+<p>
+celld speaks three dialects, so <code>spec.bucket.name</code> is always
+<code>s3://</code>, <code>gs://</code>, or <code>az://</code>, followed by the bucket and an
+optional prefix. The CRD rejects anything else, and the bucket name, endpoint, and
+storage account are immutable once set: moving a fleet to a new bucket means a new
+WorkerApp.
+</p>
+<div class="tbl-wrap"><table>
+<tr><th>Dialect</th><th>Notes</th><th>Credentials</th></tr>
+<tr><td><code>s3://</code></td><td>AWS S3, R2, Tigris, and other S3-compatible stores. <code>endpoint</code> (HTTPS, and on the operator's <code>allowedBucketEndpoints</code> list) for anything but AWS; <code>region</code> when it cannot be inferred (<code>auto</code> for R2).</td><td><code>iamRole</code> (EKS IRSA); EKS Pod Identity with <code>credentialsFrom</code> left empty; or <code>secretRef</code> with <code>AWS_ACCESS_KEY_ID</code> / <code>AWS_SECRET_ACCESS_KEY</code>.</td></tr>
+<tr><td><code>gs://</code></td><td>Cloud Storage XML API with generation preconditions. celld rejects an endpoint and S3 credentials, and ignores the region.</td><td>Google OAuth credentials. The operator does not wire GKE Workload Identity yet.</td></tr>
+<tr><td><code>az://</code></td><td>The name is a Blob Storage <em>container</em>; <code>storageAccount</code> is required. celld rejects an endpoint. Public Azure cloud only.</td><td><code>azureClientID</code> (AKS workload identity, needs Storage Blob Data Contributor); <code>secretRef</code> with <code>AZURE_STORAGE_ACCOUNT_KEY</code>; or a node managed identity with only <code>storageAccount</code> set.</td></tr>
 </table></div>
 <p>
-celld speaks exactly two dialects — S3 and Google Cloud Storage — so a bucket spec is
-either <code>s3://…</code> or <code>gs://…</code> and nothing else. Stores that expose no
-S3-compatible API (Azure Blob Storage among them) cannot back a fleet, whatever their
-consistency guarantees; the operator's CRD rejects the spec outright.
-</p>
-<p>
-For <code>gs://</code> buckets, celld uses the Cloud Storage XML API with generation
-preconditions and Application Default Credentials. It rejects an S3
-<code>--endpoint</code> for a <code>gs://</code> bucket, rejects S3 static credentials
-for one (so <code>credentialsFrom.secretRef</code> is a startup failure, not a
-fallback), and ignores the storage region.
+<code>appVersion: auto</code> reads the deploy pointer over the S3 API, so it works only
+for <code>s3://</code> buckets; <code>gs://</code> and <code>az://</code> fleets pin
+<code>appVersion</code>.
 </p>
 
 <h2 id="qualification"><a class="anchor" href="#qualification">Qualifying a store yourself</a></h2>
@@ -190,34 +209,49 @@ fallback), and ignores the storage region.
 Before trusting any store not on the qualified list, and again after every store
 upgrade, run both checks:
 </p>
-<pre class="code"><code><span class="c"># 1. celld's own sequential CAS contract test (from the celld repo).</span>
-<span class="c">#    S3-compatible store:</span>
-<span class="p">$</span> CELLD_CAS_LIVE=1 CELLD_CAS_BUCKET=&lt;bucket&gt; CELLD_CAS_ENDPOINT=&lt;url&gt; \
-    cargo test -p celld put_cas_contract -- --nocapture
-<span class="c">#    GCS (no endpoint — celld rejects one for gs://):</span>
-<span class="p">$</span> CELLD_CAS_LIVE=1 CELLD_CAS_BUCKET=gs://&lt;bucket&gt; \
-    cargo test -p celld put_cas_contract -- --nocapture
+<pre class="code"><code><span class="c"># 1. celld's own sequential contract test: create, reject-create, update,</span>
+<span class="c">#    reject-stale, against the real bucket (s3://, gs://, or az://).</span>
+<span class="p">$</span> celld diagnose --bucket &lt;bucket&gt; [--endpoint &lt;url&gt;] [--region &lt;region&gt;]
 
-<span class="c"># 2. The operator repo's concurrency hammer (N racers, exactly one winner</span>
-<span class="c">#    per round). S3 dialect only:</span>
+<span class="c"># 2. The operator repo's concurrency hammer: N racers, exactly one winner</span>
+<span class="c">#    per round. S3 dialect only.</span>
 <span class="p">$</span> go run ./hack/cas-hammer --bucket &lt;bucket&gt; --endpoint &lt;url&gt; \
     --writers 8 --rounds 32</code></pre>
 <p>
-The sequential test proves the condition is applied at all; only the hammer probes
-atomicity under race. The hammer speaks the S3 dialect, so a <code>gs://</code> bucket
-gets the contract test alone.
+The sequential test proves the condition is applied at all; every celld node repeats it,
+plus a ranged-read check, before it serves, and stops if the store violates the contract.
+Only the hammer probes atomicity under race.
 </p>
 <p>
-<strong>Read both failing exit codes as disqualifying.</strong> Exit 1 means a round
-admitted more than one winner — the store cannot fence celld cells. Exit 2 means the run
-could not complete, and one cause is a conditional PUT answering with something other
-than a precondition failure, which is equally a store that does not speak the protocol
-celld depends on. Only exit 0 qualifies.
+<strong>Read both failing hammer exit codes as disqualifying.</strong> Exit 1 means a
+round admitted more than one winner: the store cannot fence celld cells. Exit 2 means
+the run could not complete, which includes a conditional PUT answering with something
+other than a precondition failure. Only exit 0 qualifies. Both tests write: the probe
+uses the reserved <code>probe/</code> prefix, the hammer its own <code>--prefix</code>.
 </p>
+
+<h2 id="prefixes"><a class="anchor" href="#prefixes">Prefixes and credentials</a></h2>
+<p>
+A fleet's bucket may carry a key prefix, such as <code>s3://platform-cells/apps/chat</code>,
+and every fleet object lives under it. celld reserves <code>probe/</code>,
+<code>cells/</code>, <code>nodes/</code>, <code>node-cells/</code>, <code>fleet/</code>,
+<code>deploy/</code>, <code>deploy-blobs/</code>, <code>log/</code>, <code>wake/</code>, and
+<code>telemetry/</code> under the prefix and deletes objects under some of them, so
+applications must not write there. Many fleets can share one physical bucket while
+credential scoping keeps authority per fleet.
+</p>
+<div class="danger">
+<p><strong>Bucket credentials are fleet-admin authority.</strong> The bucket holds
+deployments, cell state, leases, and the peer-authentication secret, so whoever holds
+the credential controls the fleet. Scope one identity per fleet to that fleet's prefix
+and nothing else, grant put <em>and</em> delete there (the startup probe writes and
+removes an object under <code>probe/</code>), prefer workload identity over static keys,
+and rotate immediately after suspected disclosure.</p>
+</div>
 
 <h2 id="topology"><a class="anchor" href="#topology">Placement and failure domains</a></h2>
 <ul>
-<li><strong>The operator never runs the store.</strong> Run a managed store, or operate
+<li><strong>The operator never runs the store.</strong> Use a managed store, or operate
 your own outside the fleet's failure domain.</li>
 <li><strong>Keep the store out of the workload cluster.</strong> A cluster incident must
 not take out compute and the source of truth together.</li>
@@ -225,33 +259,33 @@ not take out compute and the source of truth together.</li>
 for a managed store even in otherwise self-hosted deployments.</li>
 </ul>
 
-<h2 id="prefixes"><a class="anchor" href="#prefixes">Prefixes and credentials</a></h2>
-<p>
-A fleet's bucket may carry a key prefix, such as <code>s3://platform-cells/apps/chat</code>,
-and all fleet objects (deployments, SQLite replicas, ownership records, node leases, the
-peer-auth secret, telemetry) live under it. Many fleets can share one physical bucket
-while IAM scoping keeps authority per-fleet.
-</p>
-<div class="danger">
-<p><strong>Bucket credentials are fleet-admin authority.</strong> Whoever holds them
-controls the fleet: deployments, cell state, leases, the peer-auth secret. Scope one IAM
-role per fleet to that fleet's prefix and nothing else; prefer IRSA / Workload Identity
-over static keys (<code>credentialsFrom.secretRef</code> exists for stores without role
-auth); rotate immediately after suspected disclosure.</p>
-</div>
-
+<div class="page-foot"><a href="https://github.com/ezgamehost/celld-operator.io/blob/main/build/content/object-stores.html" rel="external"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit this page on GitHub</a><span>Updated 2026-10-18</span></div>
 <nav class="pager" aria-label="Docs pages"><a class="prev" href="/docs/architecture/" rel="prev"><span class="dir">&larr; Previous</span>Architecture</a><a class="next" href="/docs/compatibility/" rel="next"><span class="dir">Next &rarr;</span>Cloudflare compatibility</a></nav>
 </main>
+<aside class="toc" aria-label="On this page">
+<div class="toc-inner">
+<h4>On this page</h4>
+<ul>
+<li><a href="#contract">The storage contract</a></li>
+<li><a href="#qualified">Qualified and disqualified stores</a></li>
+<li><a href="#dialects">Dialects and credentials</a></li>
+<li><a href="#qualification">Qualifying a store yourself</a></li>
+<li><a href="#prefixes">Prefixes and credentials</a></li>
+<li><a href="#topology">Placement and failure domains</a></li>
+</ul>
+<div class="toc-meta"><a href="https://github.com/ezgamehost/celld-operator.io/blob/main/build/content/object-stores.html" rel="external"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit this page</a></div>
+</div>
+</aside>
 </div>
 
 <footer class="site-foot">
   <div class="container">
     <div class="cols">
       <div>
-        <a class="brand" href="/"><svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+        <a class="brand" href="/"><svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#07090e"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
           celld-operator
         </a>
-        <p style="margin:.6rem 0 0; font-size:.88rem">
+        <p class="blurb">
           A Kubernetes control plane for celld: self-hosted Cloudflare Workers and
           Durable Objects on infrastructure you own.
         </p>
@@ -269,9 +303,9 @@ auth); rotate immediately after suspected disclosure.</p>
         <h4>Project</h4>
         <ul>
           <li><a href="https://github.com/ezgamehost/celld-operator" rel="external">GitHub</a></li>
-          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/celld-behaviors.md" rel="external">celld behaviors reference</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/production.md" rel="external">Production guide</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/celld-behaviors.md" rel="external">celld behaviors index</a></li>
           <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/SECURITY.md" rel="external">Security policy</a></li>
-          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/CONTRIBUTING.md" rel="external">Contributing</a></li>
         </ul>
       </div>
       <div>
@@ -279,7 +313,7 @@ auth); rotate immediately after suspected disclosure.</p>
         <ul>
           <li><a href="https://celld.dev" rel="external">celld.dev</a></li>
           <li><a href="https://github.com/denoland/celld" rel="external">denoland/celld</a></li>
-          <li><a href="https://celld.dev/docs" rel="external">celld documentation</a></li>
+          <li><a href="https://github.com/denoland/celld/blob/v0.6.2/docs/README.md" rel="external">celld v0.6.2 docs</a></li>
         </ul>
       </div>
     </div>

@@ -1,55 +1,81 @@
 <h1>Installation</h1>
 <p class="lead">
 Install celld-operator with Helm (recommended) or kustomize. The operator runs in its own
-namespace and watches <code>WorkerApp</code> resources cluster-wide.
+namespace and reconciles <code>WorkerApp</code> resources cluster-wide by default, or in a
+single namespace when you scope it.
 </p>
 
 <h2 id="prerequisites"><a class="anchor" href="#prerequisites">Prerequisites</a></h2>
 <ul>
-<li><strong>Kubernetes 1.30 or newer</strong> (the version this is developed and tested
-against; the chart sets no <code>kubeVersion</code> floor, so older clusters install
-without warning and are untested) and cluster-admin access to install CRDs.</li>
-<li><strong>A qualified object store.</strong> celld's ownership fencing requires atomically
-enforced conditional writes (<code>If-None-Match: *</code>, <code>If-Match</code>) and
-read-after-write consistency, and celld speaks only the S3 and Google Cloud Storage
-dialects. Qualified: Amazon S3, Cloudflare R2, Tigris, Google Cloud Storage. <em>Not</em>
-qualified: MinIO community edition, Backblaze B2, DigitalOcean Spaces, Hetzner. Stores
-with no S3-compatible API, Azure Blob Storage among them, cannot back a fleet at all. For anything else, run
-<a href="/docs/object-stores/#qualification">store qualification</a> first: an unenforced
-condition silently splits cell ownership.</li>
+<li><strong>Kubernetes 1.30 or newer</strong> and cluster-admin access to install CRDs.
+1.30 is the version the operator is developed against; the chart sets no
+<code>kubeVersion</code> floor, so older clusters install without warning and are
+untested.</li>
+<li><strong>IPv4-capable pod networking.</strong> celld's listeners bind IPv4;
+IPv6-only clusters are not supported.</li>
+<li><strong>A qualified object store.</strong> celld's ownership fencing requires
+atomically enforced conditional writes, exact ranged reads, and read-after-write
+consistency. Qualified: Amazon S3, Cloudflare R2, Google Cloud Storage, Tigris, and
+Azure Blob Storage. <em>Not</em> qualified: Backblaze B2, DigitalOcean Spaces, Hetzner
+Object Storage, MinIO community edition (it passes the storage test but is not qualified
+for production), and Azurite. See <a href="/docs/object-stores/">Object stores</a>; every
+celld node also probes the store at startup and refuses to serve if the contract
+fails.</li>
 </ul>
 
 <h3 id="optional"><a class="anchor" href="#optional">Optional integrations</a></h3>
-<p>Each of these is optional. The first three report their absence as a status condition
-on every WorkerApp; the last two are silent, so their absence shows up as an Ingress that
-no controller acts on or a certificate that is never issued:</p>
+<p>None of these is required to start reconciling. Missing CRDs are reported as a
+condition on each affected WorkerApp; a missing controller behind an Ingress or a
+certificate is not detectable, so it shows up as a route nothing serves.</p>
 <div class="tbl-wrap"><table>
-<tr><th>Integration</th><th>What it enables</th><th>Condition when absent</th></tr>
-<tr><td><a href="https://gateway-api.sigs.k8s.io/" rel="external">Gateway API</a> CRDs + an implementation (Istio recommended)</td><td>Hostname ingress via HTTPRoutes on a shared Gateway. Install the <strong>experimental</strong> channel: the standard channel drops <code>HTTPRouteRule.retry</code>, so drain 503s reach clients during rollouts (reported as <code>RouteReconciledRetryDropped</code>)</td><td><code>IngressReady</code>: hostnames are not routed</td></tr>
-<tr><td><a href="https://istio.io/" rel="external">Istio</a> (ambient mode recommended)</td><td>AuthorizationPolicies on the internal listener, mTLS for the peer network</td><td><code>MeshPolicyReady</code>: NetworkPolicy alone guards <code>:8081</code></td></tr>
-<tr><td><a href="https://keda.sh/" rel="external">KEDA</a> + Prometheus (scraping the operator)</td><td>Custom-metrics autoscaling</td><td><code>AutoscalingReady</code>: <code>spec.autoscaling</code> has no effect (KEDA's absence only; a missing Prometheus is not detected)</td></tr>
-<tr><td>An ingress controller (ingress-nginx, Traefik, a cloud controller)</td><td><code>--ingress-mode=ingress</code>: serving the Ingress objects the operator emits</td><td>None — the Ingress is created and simply not acted on</td></tr>
-<tr><td><a href="https://cert-manager.io/" rel="external">cert-manager</a></td><td><code>--cluster-issuer</code>: per-app TLS certificates on emitted Ingresses</td><td>None — the annotation is written and no certificate is issued</td></tr>
+<tr><th>Integration</th><th>What it enables</th><th>When absent</th></tr>
+<tr><td><a href="https://gateway-api.sigs.k8s.io/" rel="external">Gateway API</a> CRDs + an implementation (Istio recommended)</td><td>Hostname ingress via one HTTPRoute per app on a shared Gateway. Standard-channel CRDs are enough; the optional drain-503 retry needs the <strong>experimental</strong> channel and <code>operator.httpRouteRetries: true</code></td><td><code>IngressReady: False</code> (<code>GatewayAPIUnavailable</code>); hostnames are not routed</td></tr>
+<tr><td><a href="https://istio.io/" rel="external">Istio</a> (ambient mode recommended)</td><td>An AuthorizationPolicy on the internal listener; mTLS for the peer network</td><td><code>MeshPolicyReady: False</code> (<code>IstioUnavailable</code>); NetworkPolicy alone guards <code>:8081</code></td></tr>
+<tr><td><a href="https://keda.sh/" rel="external">KEDA</a> <strong>v2.12.0+</strong> + Prometheus scraping the operator</td><td>Custom-metrics autoscaling. Needed only by WorkerApps with <code>spec.autoscaling.enabled</code>; the operator waits for KEDA's <code>Paused=True</code> acknowledgement before every rollout</td><td><code>AutoscalingReady: False</code> (<code>KEDAUnavailable</code>); <code>spec.autoscaling</code> has no effect</td></tr>
+<tr><td>An ingress controller (ingress-nginx, Traefik, a cloud controller)</td><td><code>ingressMode: ingress</code></td><td><code>IngressReady</code> stays <code>Unknown</code>: the Ingress exists and nothing serves it</td></tr>
+<tr><td><a href="https://cert-manager.io/" rel="external">cert-manager</a></td><td><code>clusterIssuer</code>: per-app TLS on emitted Ingresses</td><td>The annotation is written and no certificate is issued</td></tr>
 </table></div>
 <div class="note">
-<p>Ambient mode specifically, not sidecars: celld makes outbound peer and bucket calls
-<em>during termination</em>, and a sidecar exiting first would break the cell handoff.
-Ambient encrypts the peer network without putting a proxy in celld's drain path.</p>
+<p><strong>Ambient mode, not sidecars.</strong> celld makes outbound peer and bucket
+calls <em>during termination</em>, and a sidecar that exits first would break the cell
+handoff. Ambient mode encrypts the peer network without putting a proxy in celld's drain
+path.</p>
 </div>
 
 <h2 id="helm"><a class="anchor" href="#helm">Install with Helm</a></h2>
-<p>The chart is published to GHCR as an OCI artifact on every release:</p>
+<p>The chart is published to GHCR as an OCI artifact on every release. Start with a
+values file: the operator refuses WorkerApps whose image, cloud identity, or bucket
+endpoint is not explicitly allowed, so set the allowlists for the fleets you plan to
+run.</p>
+<pre class="code"><code><span class="c"># values.yaml</span>
+<span class="k">operator:</span>
+  <span class="k">ingressMode:</span> <span class="s">httproute</span>            <span class="c"># or virtualservice / ingress / none</span>
+  <span class="k">gatewayName:</span> <span class="s">edge</span>
+  <span class="k">gatewayNamespace:</span> <span class="s">infra</span>
+  <span class="k">allowedImagePrefixes:</span> <span class="s">["ghcr.io/denoland/celld:"]</span>
+  <span class="k">allowedIAMRoles:</span> <span class="s">["arn:aws:iam::123456789012:role/celld-chat"]</span>
+  <span class="k">allowedAzureClientIDs:</span> <span class="s">[]</span>
+  <span class="k">allowedBucketEndpoints:</span> <span class="s">["https://ACCOUNT.r2.cloudflarestorage.com"]</span>
+<span class="k">prometheus:</span>
+  <span class="k">enable:</span> <span class="n">true</span>                     <span class="c"># ServiceMonitor, for autoscaling</span></code></pre>
 <pre class="code"><code><span class="p">$</span> helm install celld-operator oci://ghcr.io/ezgamehost/charts/celld-operator \
-    --namespace celld-operator-system --create-namespace \
-    --set operator.ingressMode=httproute   <span class="c"># or virtualservice / ingress / none</span></code></pre>
+    --namespace celld-operator-system --create-namespace -f values.yaml</code></pre>
 <p>
-Nearly every operator flag is a Helm value: <code>operator.ingressMode</code>,
-<code>operator.gatewayName</code>, <code>operator.istioGateways</code>,
-<code>operator.ingressClass</code>, <code>operator.clusterIssuer</code>,
-<code>operator.prometheusURL</code>, <code>operator.deployPollInterval</code>, and friends.
-See the <a href="/docs/operator-configuration/">operator configuration reference</a> for
-all of them. The chart's default image tag is its <code>appVersion</code>, pinned at
-package time to the operator build it was released with.
+Nearly every operator flag is a value under <code>operator.*</code>; the
+<a href="/docs/operator-configuration/">operator configuration reference</a> lists them
+all. <code>--operator-namespace</code> follows the release namespace, and the manager's
+own flags (leader election, probes) live under <code>controllerManager.container.args</code>.
+The chart's default image tag is its <code>appVersion</code>, pinned at package time to
+the operator build it was released with.
+</p>
+
+<h3 id="namespaced"><a class="anchor" href="#namespaced">Namespace-scoped install</a></h3>
+<p>
+Set <code>operator.watchNamespace</code> to restrict the manager's cache, and the
+chart's workload Role, to one namespace. With a shared Gateway in another namespace,
+also grant the manager ServiceAccount <code>get</code> on that Gateway through a
+Role and RoleBinding there; otherwise <code>IngressReady</code> stays
+<code>Unknown</code>. Leave it empty for cluster-wide reconciliation.
 </p>
 
 <h2 id="kustomize"><a class="anchor" href="#kustomize">Install with kustomize</a></h2>
@@ -68,18 +94,35 @@ NAME                                                  READY   STATUS    RESTARTS
 celld-operator-controller-manager-7d9c6bf9c9-x2m4p    1/1     Running   0
 
 <span class="p">$</span> kubectl get crd workerapps.celld-operator.io
-NAME                                  CREATED AT
-workerapps.celld-operator.io     2026-08-14T00:00:00Z</code></pre>
+NAME                           CREATED AT
+workerapps.celld-operator.io   2026-10-18T00:00:00Z</code></pre>
 <p>
-With the operator running, continue to the <a href="/docs/quick-start/">quick start</a>
-to deploy your first WorkerApp.
+Fleet NetworkPolicies admit the manager to each fleet's internal listener by its pod
+labels, so keep <code>control-plane: controller-manager</code> and
+<code>app.kubernetes.io/name: celld-operator</code> on the manager pods if you customize
+the chart. With the operator running, continue to the
+<a href="/docs/quick-start/">quick start</a>.
 </p>
 
 <h2 id="upgrades"><a class="anchor" href="#upgrades">Upgrading the operator</a></h2>
 <p>
-Upgrade with <code>helm upgrade</code> using the new chart version. The operator
-version-pins its expectations of celld's alpha operator API, so keep the operator current
-as you track new celld releases. celld ships security fixes for its latest release only,
-and the <a href="/docs/deploying/#celld-upgrades">compatibility table</a> gates fleet
-upgrades across breaking boundaries.
+Upgrade with <code>helm upgrade</code> using the new chart version, and read the
+<a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/production.md" rel="external">production upgrade requirements</a>
+first. Recent releases intentionally reject configurations older ones accepted:
+</p>
+<ul>
+<li>fleet-durability WorkerApps without persistent storage need an explicit migration
+to a new WorkerApp;</li>
+<li>custom images, IAM roles, Azure identities, and non-AWS bucket endpoints need
+allowlist entries;</li>
+<li><code>appVersion: auto</code> needs a dedicated read-only
+<code>deployTrackingSecretRef</code>;</li>
+<li><code>spec.vars</code> is rejected for celld v0.5 and newer.</li>
+</ul>
+<p>
+A WorkerApp that fails validation reports <code>SpecValid: False</code> with the reason
+and phase <code>Degraded</code>; the operator leaves its existing fleet untouched.
+Keep the operator current as you track celld releases: the operator encodes celld's
+<a href="/docs/deploying/#celld-upgrades">version boundaries</a>, and its expectations of
+celld's alpha <code>/state</code> API are pinned per release.
 </p>

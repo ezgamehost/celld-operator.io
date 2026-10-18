@@ -10,63 +10,68 @@ metrics, and autoscaling.
 
 <h2 id="why"><a class="anchor" href="#why">Why an operator?</a></h2>
 <p>
-celld deliberately ships with no multi-tenant scheduler, no account service, and no
-managed ingress. Its own limitations page says so plainly: a fleet runs one application
-deployment, and everything around it is your problem. celld supplies the runtime and the
-data plane; <strong>celld-operator supplies the control plane</strong>, built almost
-entirely from Kubernetes-native objects, without patching celld itself.
+celld deliberately ships with no account service, no multi-tenant scheduler, and no
+managed ingress. Its own limitations page says so plainly: a fleet runs one application,
+and everything around it is your problem. celld supplies the runtime and the data plane;
+<strong>celld-operator supplies the control plane</strong>, built almost entirely from
+Kubernetes-native objects, without patching celld itself.
 </p>
 <p>
-That last part is a design constraint, not an accident. celld is a fast-moving alpha the
-operator does not control, so the operator's celld-facing surface stays thin:
-environment variables, signals, and two HTTP endpoints (<code>/__celld/health</code> and
-the internal <code>/state</code>).
+That last part is a design constraint, not an accident. celld moves fast and its
+operator API is explicitly alpha, so the operator's celld-facing surface stays thin:
+environment variables, signals, the public health path
+(<code>/.well-known/celld/health</code>), the internal <code>/state</code> endpoint, and,
+for <code>appVersion: auto</code>, the bucket's <code>deploy/current.json</code> pointer.
 </p>
 
 <h2 id="concepts"><a class="anchor" href="#concepts">Core concepts</a></h2>
 <div class="tbl-wrap"><table>
 <tr><th>Concept</th><th>Meaning</th></tr>
-<tr><td><strong>Cell</strong></td><td>A Durable Object: a small named server with a private SQLite database. One cell per user, document, chat room, or AI agent. Each cell has exactly one writer at a time, fenced by object-storage compare-and-swap.</td></tr>
-<tr><td><strong>Fleet</strong></td><td>A set of celld nodes sharing one bucket prefix and serving one application deployment. On Kubernetes, a fleet is a StatefulSet of celld pods.</td></tr>
-<tr><td><strong>Bucket</strong></td><td>The object-storage bucket (S3-compatible or GCS) that holds deployments, per-cell SQLite replicas, ownership leases, and the peer-auth secret. The bucket is the source of truth; nodes are replaceable.</td></tr>
+<tr><td><strong>Cell</strong></td><td>A Durable Object: a small named server with a private SQLite database. One cell per user, document, chat room, or AI agent. Exactly one node serves a cell at a time, fenced by conditional writes to the bucket.</td></tr>
+<tr><td><strong>Fleet</strong></td><td>A set of celld nodes sharing one bucket prefix and serving one application. On Kubernetes, a fleet is a StatefulSet of celld pods.</td></tr>
+<tr><td><strong>Bucket</strong></td><td>The object store (an S3-compatible bucket, a Google Cloud Storage bucket, or an Azure Blob Storage container) that holds deployments, per-cell SQLite data, ownership and node leases, and the peer-authentication secret. The bucket is the source of truth; nodes are replaceable.</td></tr>
 <tr><td><strong>WorkerApp</strong></td><td>The custom resource this operator reconciles. One WorkerApp = one fleet = one application. Tenancy lives at the Kubernetes layer: each app gets its own namespace-scoped resources, bucket prefix, and credentials.</td></tr>
 </table></div>
 
 <h2 id="what-you-get"><a class="anchor" href="#what-you-get">What the operator gives you</a></h2>
 <ul>
-<li><strong>Fleet provisioning</strong>: StatefulSet, Services, NetworkPolicies, PodDisruptionBudget, and (when Istio is present) mesh AuthorizationPolicies, all derived from one resource. See <a href="/docs/architecture/">Architecture</a>.</li>
-<li><strong>Ingress</strong>: hostnames routed through Gateway API, classic Istio, or plain Ingress, with drain-aware retry policy. See <a href="/docs/networking/">Networking &amp; ingress</a>.</li>
-<li><strong>Gated rollouts</strong>: celld's documented rolling-update rule (fleet-wide <code>restoring=0</code> between restarts) encoded in a controller instead of a runbook. See <a href="/docs/deploying/">Deploying updates</a>.</li>
-<li><strong>Autoscaling</strong>: KEDA ScaledObjects driven by resident-cell utilization metrics the operator itself exports. See <a href="/docs/autoscaling/">Autoscaling</a>.</li>
-<li><strong>Observability</strong>: celld's built-in tracing wired to your bucket or your OTLP collector, plus Prometheus metrics for capacity and health. See <a href="/docs/observability/">Observability</a>.</li>
-<li><strong>An honest tenancy story</strong>: per-fleet blast radius enforced by Kubernetes and prefix-scoped IAM. See <a href="/docs/security/">Security</a>.</li>
+<li><strong>Fleet provisioning</strong>: a hardened StatefulSet, Services, a ServiceAccount, a NetworkPolicy, a PodDisruptionBudget, and (when Istio is present) a mesh AuthorizationPolicy, all derived from one resource. See <a href="/docs/architecture/">Architecture</a>.</li>
+<li><strong>Ingress</strong>: hostnames routed through Gateway API, classic Istio, or plain Ingress, with drain-aware retry policy where the ingress can express it. See <a href="/docs/networking/">Networking &amp; ingress</a>.</li>
+<li><strong>Gated rollouts</strong>: one pod at a time, stepping only when every pod is Ready and the whole fleet reports <code>restoring=0</code>, with breaking celld upgrades refused unless you ask for a Recreate. See <a href="/docs/deploying/">Deploying updates</a>.</li>
+<li><strong>Autoscaling</strong>: KEDA ScaledObjects driven by resident-cell utilization metrics the operator itself exports, gated on fresh, complete samples. See <a href="/docs/autoscaling/">Autoscaling</a>.</li>
+<li><strong>Observability</strong>: celld's built-in tracing wired to your bucket or your OTLP collector, plus Prometheus metrics for capacity, memory, and self-fencing. See <a href="/docs/observability/">Observability</a>.</li>
+<li><strong>Guardrails</strong>: operator-level allowlists for images, cloud identities, and bucket endpoints, immutable bucket identity, and an honest per-fleet tenancy model. See <a href="/docs/security/">Security</a>.</li>
 </ul>
 
 <h2 id="what-it-is-not"><a class="anchor" href="#what-it-is-not">What it is not</a></h2>
 <p>
 This is a platform for <em>your</em> applications, or your customers' applications under
-your operation. It is <strong>not</strong> a public PaaS for anonymous hostile code: celld's
-security documentation states it is not safe for hostile multi-tenant use, and the
-operator does not pack untrusted tenants into shared celld nodes. The unit of tenancy is
-a fleet (two to three pods minimum for high availability), not an isolate.
+your operation. It is <strong>not</strong> a public PaaS for anonymous hostile code:
+celld's security documentation states it is not safe for hostile multi-tenant use, and
+the operator does not pack untrusted tenants into shared celld nodes. WorkerApp authors
+are trusted workload deployers. The unit of tenancy is a fleet (two to three pods
+minimum for high availability), not an isolate.
 </p>
 <p>
-The operator also does not fill every Cloudflare platform gap. KV, R2, and the Cache API
-are explicitly not planned upstream; the
-<a href="/docs/compatibility/">compatibility matrix</a> tells you exactly what runs, and
-gaps fail loudly rather than silently.
+The operator also does not fill Cloudflare platform gaps itself. celld v0.6.2 runs
+Workers, Durable Objects, KV, Queues, D1, Workflows, R2 bindings, cron triggers, and
+static assets; it does not run Workers AI, Vectorize, Hyperdrive, Browser Rendering, or
+Email Workers. The <a href="/docs/compatibility/">compatibility matrix</a> lists the
+details, and gaps fail loudly at deploy time or first use.
 </p>
 
 <div class="warn">
-<p><strong>Status: alpha.</strong> celld itself is an alpha and this operator tracks it
-release-for-release. Upstream ships security fixes for its latest release only, and the
-operator's support policy mirrors that. The API group is
-<code>celld-operator.io/v1alpha1</code> and may change.</p>
+<p><strong>Status: alpha.</strong> celld v0.6.2 is a beta release, and this operator
+tracks it release-for-release. Upstream ships security fixes for its latest release
+only, and the operator's support policy mirrors that. The API group is
+<code>celld-operator.io/v1alpha1</code> and may change. Read the
+<a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/production.md" rel="external">production operation guide</a>
+before running a fleet you care about.</p>
 </div>
 
 <h2 id="next"><a class="anchor" href="#next">Where to go next</a></h2>
 <ul>
-<li><a href="/docs/install/">Install the operator</a>: Helm or kustomize, plus optional integrations.</li>
+<li><a href="/docs/install/">Install the operator</a>: Helm or kustomize, trust allowlists, and optional integrations.</li>
 <li><a href="/docs/quick-start/">Quick start</a>: from a Wrangler project to a converged fleet.</li>
 <li><a href="/docs/architecture/">Architecture</a>: why everything is the way it is.</li>
 <li><a href="/docs/workerapp/">WorkerApp reference</a>: every field, default, and condition.</li>

@@ -6,7 +6,11 @@
 <title>Introduction to celld-operator · celld-operator</title>
 <meta name="description" content="What celld-operator is: a Kubernetes operator that turns celld into a self-hosted Cloudflare Workers and Durable Objects platform. Concepts, scope, and project status.">
 <link rel="canonical" href="https://celld-operator.io/docs/">
+<meta name="theme-color" content="#07090e">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap">
 <link rel="stylesheet" href="/assets/style.css">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="celld-operator">
@@ -27,6 +31,7 @@
  "headline": "Introduction to celld-operator",
  "description": "What celld-operator is: a Kubernetes operator that turns celld into a self-hosted Cloudflare Workers and Durable Objects platform. Concepts, scope, and project status.",
  "url": "https://celld-operator.io/docs/",
+ "dateModified": "2026-10-18",
  "isPartOf": {
   "@type": "WebSite",
   "name": "celld-operator",
@@ -73,18 +78,19 @@
 <header class="site-head">
   <div class="container">
     <a class="brand" href="/">
-      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+      <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#07090e"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
       celld-operator
     </a>
     <nav class="site-nav" aria-label="Main">
-      <a href="/docs/">Docs</a>
+      <a href="/docs/" aria-current="page">Docs</a>
+      <a href="/docs/workerapp/">Reference</a>
       <a href="/docs/compatibility/">Compatibility</a>
-      <a href="https://celld.dev" rel="external">celld.dev</a>
-      <a class="gh" href="https://github.com/ezgamehost/celld-operator" rel="external">
-        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-        GitHub
-      </a>
+      <a href="https://celld.dev" rel="external">celld</a>
     </nav>
+    <div class="head-actions">
+      <a class="gh" href="https://github.com/ezgamehost/celld-operator" rel="external"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg><span>GitHub</span></a>
+      <a class="btn btn-primary btn-sm" href="/docs/quick-start/">Get started</a>
+    </div>
   </div>
 </header>
 
@@ -123,7 +129,7 @@
 <script>if(matchMedia("(max-width: 56rem)").matches)document.currentScript.parentElement.querySelector("details").removeAttribute("open")</script>
 </nav>
 <main class="docs-main" id="main">
-<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a> &rsaquo; <span>Docs</span></nav>
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/docs/">Docs</a><span class="sep">/</span><span>Getting started</span></nav>
 <h1>Introduction</h1>
 <p class="lead">
 celld-operator is a Kubernetes operator that turns
@@ -136,80 +142,99 @@ metrics, and autoscaling.
 
 <h2 id="why"><a class="anchor" href="#why">Why an operator?</a></h2>
 <p>
-celld deliberately ships with no multi-tenant scheduler, no account service, and no
-managed ingress. Its own limitations page says so plainly: a fleet runs one application
-deployment, and everything around it is your problem. celld supplies the runtime and the
-data plane; <strong>celld-operator supplies the control plane</strong>, built almost
-entirely from Kubernetes-native objects, without patching celld itself.
+celld deliberately ships with no account service, no multi-tenant scheduler, and no
+managed ingress. Its own limitations page says so plainly: a fleet runs one application,
+and everything around it is your problem. celld supplies the runtime and the data plane;
+<strong>celld-operator supplies the control plane</strong>, built almost entirely from
+Kubernetes-native objects, without patching celld itself.
 </p>
 <p>
-That last part is a design constraint, not an accident. celld is a fast-moving alpha the
-operator does not control, so the operator's celld-facing surface stays thin:
-environment variables, signals, and two HTTP endpoints (<code>/__celld/health</code> and
-the internal <code>/state</code>).
+That last part is a design constraint, not an accident. celld moves fast and its
+operator API is explicitly alpha, so the operator's celld-facing surface stays thin:
+environment variables, signals, the public health path
+(<code>/.well-known/celld/health</code>), the internal <code>/state</code> endpoint, and,
+for <code>appVersion: auto</code>, the bucket's <code>deploy/current.json</code> pointer.
 </p>
 
 <h2 id="concepts"><a class="anchor" href="#concepts">Core concepts</a></h2>
 <div class="tbl-wrap"><table>
 <tr><th>Concept</th><th>Meaning</th></tr>
-<tr><td><strong>Cell</strong></td><td>A Durable Object: a small named server with a private SQLite database. One cell per user, document, chat room, or AI agent. Each cell has exactly one writer at a time, fenced by object-storage compare-and-swap.</td></tr>
-<tr><td><strong>Fleet</strong></td><td>A set of celld nodes sharing one bucket prefix and serving one application deployment. On Kubernetes, a fleet is a StatefulSet of celld pods.</td></tr>
-<tr><td><strong>Bucket</strong></td><td>The object-storage bucket (S3-compatible or GCS) that holds deployments, per-cell SQLite replicas, ownership leases, and the peer-auth secret. The bucket is the source of truth; nodes are replaceable.</td></tr>
+<tr><td><strong>Cell</strong></td><td>A Durable Object: a small named server with a private SQLite database. One cell per user, document, chat room, or AI agent. Exactly one node serves a cell at a time, fenced by conditional writes to the bucket.</td></tr>
+<tr><td><strong>Fleet</strong></td><td>A set of celld nodes sharing one bucket prefix and serving one application. On Kubernetes, a fleet is a StatefulSet of celld pods.</td></tr>
+<tr><td><strong>Bucket</strong></td><td>The object store (an S3-compatible bucket, a Google Cloud Storage bucket, or an Azure Blob Storage container) that holds deployments, per-cell SQLite data, ownership and node leases, and the peer-authentication secret. The bucket is the source of truth; nodes are replaceable.</td></tr>
 <tr><td><strong>WorkerApp</strong></td><td>The custom resource this operator reconciles. One WorkerApp = one fleet = one application. Tenancy lives at the Kubernetes layer: each app gets its own namespace-scoped resources, bucket prefix, and credentials.</td></tr>
 </table></div>
 
 <h2 id="what-you-get"><a class="anchor" href="#what-you-get">What the operator gives you</a></h2>
 <ul>
-<li><strong>Fleet provisioning</strong>: StatefulSet, Services, NetworkPolicies, PodDisruptionBudget, and (when Istio is present) mesh AuthorizationPolicies, all derived from one resource. See <a href="/docs/architecture/">Architecture</a>.</li>
-<li><strong>Ingress</strong>: hostnames routed through Gateway API, classic Istio, or plain Ingress, with drain-aware retry policy. See <a href="/docs/networking/">Networking &amp; ingress</a>.</li>
-<li><strong>Gated rollouts</strong>: celld's documented rolling-update rule (fleet-wide <code>restoring=0</code> between restarts) encoded in a controller instead of a runbook. See <a href="/docs/deploying/">Deploying updates</a>.</li>
-<li><strong>Autoscaling</strong>: KEDA ScaledObjects driven by resident-cell utilization metrics the operator itself exports. See <a href="/docs/autoscaling/">Autoscaling</a>.</li>
-<li><strong>Observability</strong>: celld's built-in tracing wired to your bucket or your OTLP collector, plus Prometheus metrics for capacity and health. See <a href="/docs/observability/">Observability</a>.</li>
-<li><strong>An honest tenancy story</strong>: per-fleet blast radius enforced by Kubernetes and prefix-scoped IAM. See <a href="/docs/security/">Security</a>.</li>
+<li><strong>Fleet provisioning</strong>: a hardened StatefulSet, Services, a ServiceAccount, a NetworkPolicy, a PodDisruptionBudget, and (when Istio is present) a mesh AuthorizationPolicy, all derived from one resource. See <a href="/docs/architecture/">Architecture</a>.</li>
+<li><strong>Ingress</strong>: hostnames routed through Gateway API, classic Istio, or plain Ingress, with drain-aware retry policy where the ingress can express it. See <a href="/docs/networking/">Networking &amp; ingress</a>.</li>
+<li><strong>Gated rollouts</strong>: one pod at a time, stepping only when every pod is Ready and the whole fleet reports <code>restoring=0</code>, with breaking celld upgrades refused unless you ask for a Recreate. See <a href="/docs/deploying/">Deploying updates</a>.</li>
+<li><strong>Autoscaling</strong>: KEDA ScaledObjects driven by resident-cell utilization metrics the operator itself exports, gated on fresh, complete samples. See <a href="/docs/autoscaling/">Autoscaling</a>.</li>
+<li><strong>Observability</strong>: celld's built-in tracing wired to your bucket or your OTLP collector, plus Prometheus metrics for capacity, memory, and self-fencing. See <a href="/docs/observability/">Observability</a>.</li>
+<li><strong>Guardrails</strong>: operator-level allowlists for images, cloud identities, and bucket endpoints, immutable bucket identity, and an honest per-fleet tenancy model. See <a href="/docs/security/">Security</a>.</li>
 </ul>
 
 <h2 id="what-it-is-not"><a class="anchor" href="#what-it-is-not">What it is not</a></h2>
 <p>
 This is a platform for <em>your</em> applications, or your customers' applications under
-your operation. It is <strong>not</strong> a public PaaS for anonymous hostile code: celld's
-security documentation states it is not safe for hostile multi-tenant use, and the
-operator does not pack untrusted tenants into shared celld nodes. The unit of tenancy is
-a fleet (two to three pods minimum for high availability), not an isolate.
+your operation. It is <strong>not</strong> a public PaaS for anonymous hostile code:
+celld's security documentation states it is not safe for hostile multi-tenant use, and
+the operator does not pack untrusted tenants into shared celld nodes. WorkerApp authors
+are trusted workload deployers. The unit of tenancy is a fleet (two to three pods
+minimum for high availability), not an isolate.
 </p>
 <p>
-The operator also does not fill every Cloudflare platform gap. KV, R2, and the Cache API
-are explicitly not planned upstream; the
-<a href="/docs/compatibility/">compatibility matrix</a> tells you exactly what runs, and
-gaps fail loudly rather than silently.
+The operator also does not fill Cloudflare platform gaps itself. celld v0.6.2 runs
+Workers, Durable Objects, KV, Queues, D1, Workflows, R2 bindings, cron triggers, and
+static assets; it does not run Workers AI, Vectorize, Hyperdrive, Browser Rendering, or
+Email Workers. The <a href="/docs/compatibility/">compatibility matrix</a> lists the
+details, and gaps fail loudly at deploy time or first use.
 </p>
 
 <div class="warn">
-<p><strong>Status: alpha.</strong> celld itself is an alpha and this operator tracks it
-release-for-release. Upstream ships security fixes for its latest release only, and the
-operator's support policy mirrors that. The API group is
-<code>celld-operator.io/v1alpha1</code> and may change.</p>
+<p><strong>Status: alpha.</strong> celld v0.6.2 is a beta release, and this operator
+tracks it release-for-release. Upstream ships security fixes for its latest release
+only, and the operator's support policy mirrors that. The API group is
+<code>celld-operator.io/v1alpha1</code> and may change. Read the
+<a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/production.md" rel="external">production operation guide</a>
+before running a fleet you care about.</p>
 </div>
 
 <h2 id="next"><a class="anchor" href="#next">Where to go next</a></h2>
 <ul>
-<li><a href="/docs/install/">Install the operator</a>: Helm or kustomize, plus optional integrations.</li>
+<li><a href="/docs/install/">Install the operator</a>: Helm or kustomize, trust allowlists, and optional integrations.</li>
 <li><a href="/docs/quick-start/">Quick start</a>: from a Wrangler project to a converged fleet.</li>
 <li><a href="/docs/architecture/">Architecture</a>: why everything is the way it is.</li>
 <li><a href="/docs/workerapp/">WorkerApp reference</a>: every field, default, and condition.</li>
 </ul>
 
+<div class="page-foot"><a href="https://github.com/ezgamehost/celld-operator.io/blob/main/build/content/index.html" rel="external"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit this page on GitHub</a><span>Updated 2026-10-18</span></div>
 <nav class="pager" aria-label="Docs pages"><a class="next" href="/docs/install/" rel="next"><span class="dir">Next &rarr;</span>Installation</a></nav>
 </main>
+<aside class="toc" aria-label="On this page">
+<div class="toc-inner">
+<h4>On this page</h4>
+<ul>
+<li><a href="#why">Why an operator?</a></li>
+<li><a href="#concepts">Core concepts</a></li>
+<li><a href="#what-you-get">What the operator gives you</a></li>
+<li><a href="#what-it-is-not">What it is not</a></li>
+<li><a href="#next">Where to go next</a></li>
+</ul>
+<div class="toc-meta"><a href="https://github.com/ezgamehost/celld-operator.io/blob/main/build/content/index.html" rel="external"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit this page</a></div>
+</div>
+</aside>
 </div>
 
 <footer class="site-foot">
   <div class="container">
     <div class="cols">
       <div>
-        <a class="brand" href="/"><svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+        <a class="brand" href="/"><svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#07090e"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
           celld-operator
         </a>
-        <p style="margin:.6rem 0 0; font-size:.88rem">
+        <p class="blurb">
           A Kubernetes control plane for celld: self-hosted Cloudflare Workers and
           Durable Objects on infrastructure you own.
         </p>
@@ -227,9 +252,9 @@ operator's support policy mirrors that. The API group is
         <h4>Project</h4>
         <ul>
           <li><a href="https://github.com/ezgamehost/celld-operator" rel="external">GitHub</a></li>
-          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/celld-behaviors.md" rel="external">celld behaviors reference</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/production.md" rel="external">Production guide</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/celld-behaviors.md" rel="external">celld behaviors index</a></li>
           <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/SECURITY.md" rel="external">Security policy</a></li>
-          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/CONTRIBUTING.md" rel="external">Contributing</a></li>
         </ul>
       </div>
       <div>
@@ -237,7 +262,7 @@ operator's support policy mirrors that. The API group is
         <ul>
           <li><a href="https://celld.dev" rel="external">celld.dev</a></li>
           <li><a href="https://github.com/denoland/celld" rel="external">denoland/celld</a></li>
-          <li><a href="https://celld.dev/docs" rel="external">celld documentation</a></li>
+          <li><a href="https://github.com/denoland/celld/blob/v0.6.2/docs/README.md" rel="external">celld v0.6.2 docs</a></li>
         </ul>
       </div>
     </div>

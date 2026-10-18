@@ -1,71 +1,98 @@
 <h1>WorkerApp reference</h1>
 <p class="lead">
-The complete <code>celld-operator.io/v1alpha1</code> <code>WorkerApp</code> API:
-every spec field with its default and validation, and the full status surface. One
-WorkerApp is one celld fleet serving one application deployment, so the resource, the
-fleet, and the app are 1:1:1.
+The complete <code>celld-operator.io/v1alpha1</code> <code>WorkerApp</code> API: every spec
+field with its default and validation, and the full status surface. One WorkerApp is one
+celld fleet serving one application, so the resource, the fleet, and the app are 1:1:1.
+</p>
+<p>
+Validation happens twice: the CRD's schema and CEL rules reject bad objects at
+admission, and the operator re-validates every object (including ones admitted by older
+CRDs) against its allowlists before creating anything. A failure sets
+<code>SpecValid: False</code> and phase <code>Degraded</code>. The resource name must be a
+DNS label of at most 48 characters.
 </p>
 
 <h2 id="spec"><a class="anchor" href="#spec">Spec</a></h2>
 
 <h3 id="top-level"><a class="anchor" href="#top-level">Top-level fields</a></h3>
 <div class="tbl-wrap"><table>
-<tr><th>Field</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
-<tr><td><code>hostnames</code></td><td>[]string (set)</td><td>no</td><td>unset</td><td>Hostnames routed to this app on the shared Gateway; one route per hostname is reconciled in the app's namespace. Omit for internal-only apps.</td></tr>
-<tr><td><code>appVersion</code></td><td>string</td><td><strong>yes</strong></td><td>unset</td><td>The application deployment in the fleet bucket (written by <code>celld deploy</code>). Changing it triggers the <a href="/docs/deploying/#gated">gated rollout</a>. The sentinel <code>auto</code> follows the bucket's <code>deploy/current.json</code> instead.</td></tr>
-<tr><td><code>replicas</code></td><td>int32 ≥ 1</td><td>no</td><td><code>3</code></td><td>Fleet size when autoscaling is disabled; the initial size otherwise.</td></tr>
-<tr><td><code>websockets</code></td><td>bool</td><td>no</td><td><code>false</code></td><td>Selects the <a href="/docs/networking/#websockets">WebSocket ingress profile</a>: session affinity, long idle timeouts, conservative scale-down.</td></tr>
+<tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+<tr><td><code>appVersion</code></td><td>string, <strong>required</strong></td><td>none</td><td>The expected deployment: the Version ID <code>celld deploy</code> printed. celld adopts the bucket pointer on its own; status verifies that every pod serves this. The sentinel <code>auto</code> follows the bucket's <code>deploy/current.json</code> and requires an <code>s3://</code> bucket and <code>deployTrackingSecretRef</code>. See <a href="/docs/deploying/">Deploying updates</a>.</td></tr>
+<tr><td><code>deploymentPolicy</code></td><td><code>Restart</code> | <code>InPlace</code></td><td><code>Restart</code></td><td>Whether an <code>appVersion</code> change also runs a gated restart (<code>Restart</code>) or relies on celld's in-place adoption alone (<code>InPlace</code>).</td></tr>
+<tr><td><code>deployTrackingSecretRef</code></td><td>string</td><td>unset</td><td>A Secret with a read-only S3 credential (<code>AWS_ACCESS_KEY_ID</code>, <code>AWS_SECRET_ACCESS_KEY</code>, optional <code>AWS_SESSION_TOKEN</code>) for reading <code>deploy/current.json</code>. Required for <code>auto</code>; in pinned mode it enables the <code>VersionMismatch</code> drift check.</td></tr>
+<tr><td><code>hostnames</code></td><td>[]string (set)</td><td>unset</td><td>Hostnames routed to this app. One route object carrying every hostname is reconciled in the app's namespace; its kind depends on the operator's ingress mode. Omit for internal-only apps.</td></tr>
+<tr><td><code>replicas</code></td><td>int32 ≥ 1</td><td><code>3</code></td><td>Fleet size when autoscaling is disabled; the initial size otherwise.</td></tr>
+<tr><td><code>durability</code></td><td><code>bucket</code> | <code>fleet</code></td><td><code>bucket</code></td><td>How celld proves a write before acknowledging it (<code>CELLD_DURABILITY</code>). <code>bucket</code>: the write is in the bucket. <code>fleet</code>: follower nodes fsync it and the upload follows; requires <code>storage</code>, <code>replicas ≥ 3</code>, and <code>autoscaling.minReplicas ≥ 3</code> when autoscaling. Changing it rolls the fleet.</td></tr>
+<tr><td><code>websockets</code></td><td>bool</td><td><code>false</code></td><td>Selects the <a href="/docs/networking/#websockets">WebSocket profile</a>: long edge timeouts where the ingress mode can express them, and a 30-minute scale-down window. No session affinity.</td></tr>
+<tr><td><code>trustForwardedHeaders</code></td><td>bool</td><td><code>false</code></td><td>Lets <code>X-Forwarded-Host</code>/<code>-Proto</code> set <code>request.url</code> (<code>CELLD_TRUST_FORWARDED_HEADERS=1</code>). Only when every hop in front of the fleet replaces both headers.</td></tr>
+<tr><td><code>clusterDomain</code></td><td>DNS name</td><td><code>cluster.local</code></td><td>The cluster's DNS suffix, used in peer advertise addresses and VirtualService hosts.</td></tr>
 </table></div>
 
 <h3 id="celld"><a class="anchor" href="#celld">celld</a></h3>
 <div class="tbl-wrap"><table>
-<tr><th>Field</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
-<tr><td><code>celld.image</code></td><td>string</td><td><strong>yes</strong></td><td>unset</td><td>The celld container image, tag included (e.g. <code>ghcr.io/denoland/celld:v0.2.0</code>). Mixed-version fleets are never created; changing this triggers the update strategy.</td></tr>
-<tr><td><code>celld.updateStrategy</code></td><td><code>Rolling</code> | <code>Recreate</code></td><td>no</td><td><code>Rolling</code></td><td>Rollout path for celld version changes. <code>Rolling</code> is partition-stepped and restoring-gated; a Rolling request across a known-breaking celld boundary is refused. <code>Recreate</code> scales to zero first, which is an availability event by design.</td></tr>
+<tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+<tr><td><code>celld.image</code></td><td>string, <strong>required</strong></td><td>none</td><td>The celld image, e.g. <code>ghcr.io/denoland/celld:v0.6.2</code>. The tag must carry a numeric <code>major.minor.patch</code> version (also when digest-pinned), and the image must match the operator's <code>allowedImagePrefixes</code>.</td></tr>
+<tr><td><code>celld.updateStrategy</code></td><td><code>Rolling</code> | <code>Recreate</code></td><td><code>Rolling</code></td><td><code>Rolling</code> is partition-stepped and restoring-gated, and is refused across a <a href="/docs/deploying/#celld-upgrades">non-rolling boundary</a>. <code>Recreate</code> scales to zero first, an availability event by design. Downgrades from v0.3+ to older runtimes are refused either way.</td></tr>
 </table></div>
 
 <h3 id="bucket"><a class="anchor" href="#bucket">bucket</a></h3>
+<p>Bucket identity (<code>name</code>, <code>endpoint</code>, <code>storageAccount</code>) is immutable; migrate to a new WorkerApp to change it.</p>
 <div class="tbl-wrap"><table>
-<tr><th>Field</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
-<tr><td><code>bucket.name</code></td><td>string, <code>^(s3|gs)://.+</code></td><td><strong>yes</strong></td><td>unset</td><td>The fleet bucket and prefix, e.g. <code>s3://platform-cells/apps/chat</code> or <code>gs://…</code>. The store must satisfy the <a href="/docs/object-stores/#contract">fencing contract</a>.</td></tr>
-<tr><td><code>bucket.endpoint</code></td><td>string</td><td>no</td><td>unset</td><td>S3-compatible endpoint URL when not AWS S3 (e.g. an R2 account endpoint). Rejected by celld for <code>gs://</code> buckets.</td></tr>
-<tr><td><code>bucket.region</code></td><td>string</td><td>no</td><td>unset</td><td>Storage region, when it cannot be inferred (<code>auto</code> for R2).</td></tr>
-<tr><td><code>bucket.credentialsFrom.iamRole</code></td><td>string</td><td>no</td><td>unset</td><td>IAM role ARN assumed via the pod's service account (IRSA / Workload Identity), or the literal <code>auto</code> to have the operator provision a prefix-scoped role. <em><code>auto</code> provisioning is not implemented yet</em>, so the fleet reports <code>BucketCredentialsReady: False</code> and you annotate the fleet ServiceAccount yourself.</td></tr>
-<tr><td><code>bucket.credentialsFrom.secretRef</code></td><td>string</td><td>no</td><td>unset</td><td>A Secret with static credentials (<code>AWS_ACCESS_KEY_ID</code> / <code>AWS_SECRET_ACCESS_KEY</code>), for stores without role-based auth. Exactly one mechanism applies; prefer <code>iamRole</code>.</td></tr>
+<tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+<tr><td><code>bucket.name</code></td><td>string, <strong>required</strong></td><td>none</td><td>Bucket and prefix: <code>s3://</code>, <code>gs://</code>, or <code>az://</code> (the container), e.g. <code>s3://platform-cells/apps/chat</code>. At most 1024 characters. The store must satisfy the <a href="/docs/object-stores/#contract">storage contract</a>.</td></tr>
+<tr><td><code>bucket.endpoint</code></td><td>string</td><td>unset</td><td>S3-compatible endpoint when not AWS S3 (e.g. an R2 account endpoint). <code>s3://</code> only; must be HTTPS and on the operator's <code>allowedBucketEndpoints</code>.</td></tr>
+<tr><td><code>bucket.region</code></td><td>string</td><td>unset</td><td>Storage region when it cannot be inferred (<code>auto</code> for R2).</td></tr>
+<tr><td><code>bucket.storageAccount</code></td><td>string, 3–24 lowercase alphanumerics</td><td>unset</td><td>The Azure storage account (<code>AZURE_STORAGE_ACCOUNT_NAME</code>). Required for <code>az://</code>.</td></tr>
+<tr><td><code>bucket.credentialsFrom.iamRole</code></td><td>string</td><td>unset</td><td>An IAM role ARN, rendered as the EKS IRSA annotation on the fleet ServiceAccount; must be on <code>allowedIAMRoles</code>. The literal <code>auto</code> (operator-provisioned role) is <em>not implemented</em> and reports <code>BucketCredentialsReady: False</code>. Leave <code>credentialsFrom</code> empty for EKS Pod Identity.</td></tr>
+<tr><td><code>bucket.credentialsFrom.azureClientID</code></td><td>string</td><td>unset</td><td>A Microsoft Entra workload identity client ID for <code>az://</code> (AKS workload identity); must be on <code>allowedAzureClientIDs</code>.</td></tr>
+<tr><td><code>bucket.credentialsFrom.secretRef</code></td><td>string</td><td>unset</td><td>A Secret injected as environment: <code>AWS_ACCESS_KEY_ID</code>/<code>AWS_SECRET_ACCESS_KEY</code> for <code>s3://</code>, <code>AZURE_STORAGE_ACCOUNT_KEY</code> for <code>az://</code>. Rotation rolls the fleet.</td></tr>
 </table></div>
+<p>At most one of <code>iamRole</code>, <code>azureClientID</code>, and <code>secretRef</code> may be set.</p>
 
 <h3 id="resources"><a class="anchor" href="#resources">resources</a></h3>
 <div class="tbl-wrap"><table>
-<tr><th>Field</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
-<tr><td><code>resources.memoryGi</code></td><td>int32 ≥ 1</td><td>no</td><td><code>8</code></td><td>Container memory limit per pod, in GiB. The operator derives <code>CELLD_MAX_RSS_MB</code> (~80% of the limit, set explicitly because the upstream default is not cgroup-aware).</td></tr>
-<tr><td><code>resources.maxResidentCells</code></td><td>int32 ≥ 1</td><td>no</td><td><code>1000</code></td><td>Hard per-node resident-cell admission limit (<code>CELLD_MAX_RESIDENT_CELLS</code>). Upstream sizing: ~1,000 cells per 8 GiB.</td></tr>
+<tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+<tr><td><code>resources.memoryGi</code></td><td>int32, 1–65536</td><td><code>8</code></td><td>Memory request and limit per pod, in GiB. The operator sets <code>CELLD_MAX_RSS_MB</code> to 80% of it.</td></tr>
+<tr><td><code>resources.maxResidentCells</code></td><td>int32 ≥ 1</td><td><code>1000</code></td><td>Hard per-node resident-cell admission limit (<code>CELLD_MAX_RESIDENT_CELLS</code>). Upstream sizing: about 1,000 cells per 8 GiB.</td></tr>
+<tr><td><code>resources.cpuMillis</code></td><td>int32 ≥ 1</td><td><code>500</code></td><td>CPU request per pod, in millicores. No CPU limit is set.</td></tr>
+<tr><td><code>resources.ephemeralStorageGi</code></td><td>int32 ≥ 1</td><td><code>10</code></td><td>Ephemeral-storage limit per pod, in GiB.</td></tr>
 </table></div>
 
-<h3 id="vars-service"><a class="anchor" href="#vars-service">vars and service</a></h3>
+<h3 id="storage-spec"><a class="anchor" href="#storage-spec">storage and scheduling</a></h3>
 <div class="tbl-wrap"><table>
-<tr><th>Field</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
-<tr><td><code>vars.secretRef</code></td><td>string</td><td>yes, if <code>vars</code> set</td><td>unset</td><td>Secret whose <code>vars.env</code> data (<code>NAME=value</code> lines) is mounted and passed via <code>CELLD_VARS_FILE</code>. Rotation rolls the fleet through an ordinary gated rollout.</td></tr>
-<tr><td><code>service.type</code></td><td><code>ClusterIP</code> | <code>LoadBalancer</code> | <code>NodePort</code></td><td>no</td><td><code>ClusterIP</code></td><td>Shape of the serving Service fronting the Worker listener. ClusterIP suits ingress backends and in-cluster consumers (<code>&lt;app&gt;-celld.&lt;ns&gt;.svc:8080</code>); LoadBalancer provisions a cloud LB; NodePort suits bare-metal edges.</td></tr>
-<tr><td><code>service.annotations</code></td><td>map</td><td>no</td><td>unset</td><td>Merged onto the serving Service: internal-LB flags, protocol hints, health-check tuning.</td></tr>
+<tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+<tr><td><code>storage.sizeGi</code></td><td>int32, 1–65536</td><td>unset</td><td>Provisions a retained PersistentVolumeClaim per ordinal for <code>/var/lib/celld</code>. Without <code>storage</code>, local state is an emptyDir. Claims survive scale-down and WorkerApp deletion. The whole <code>storage</code> block is immutable.</td></tr>
+<tr><td><code>storage.storageClassName</code></td><td>string</td><td>cluster default</td><td>The claim's StorageClass. Node-local storage does not survive permanent node loss.</td></tr>
+<tr><td><code>scheduling.nodeSelector</code></td><td>map</td><td>unset</td><td>Pod node selector, e.g. to pin fleets to a dedicated node pool.</td></tr>
+<tr><td><code>scheduling.tolerations</code></td><td>[]Toleration</td><td>unset</td><td>Pod tolerations.</td></tr>
+<tr><td><code>scheduling.spreadAcrossZones</code></td><td>bool</td><td><code>false</code></td><td>With <code>storage</code>, also require one pod per zone (pods with storage always require distinct hosts). Provision enough zones for <code>maxReplicas</code>.</td></tr>
+</table></div>
+
+<h3 id="service-spec"><a class="anchor" href="#service-spec">service and vars</a></h3>
+<div class="tbl-wrap"><table>
+<tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+<tr><td><code>service.type</code></td><td><code>ClusterIP</code> | <code>LoadBalancer</code> | <code>NodePort</code></td><td><code>ClusterIP</code></td><td>Type of the serving Service fronting the Worker listener. ClusterIP suits ingress backends and in-cluster consumers (<code>&lt;app&gt;-celld.&lt;ns&gt;.svc:8080</code>).</td></tr>
+<tr><td><code>service.annotations</code></td><td>map</td><td>unset</td><td>Merged onto the serving Service (internal-LB flags, health-check tuning); removed again when deleted from the spec.</td></tr>
+<tr><td><code>vars.secretRef</code></td><td>string</td><td>unset</td><td><strong>celld before v0.5 only.</strong> A Secret whose <code>vars.env</code> key (<code>NAME=value</code> lines) is mounted and passed via <code>CELLD_VARS_FILE</code>. Rejected for v0.5+ images: use the deployment's Wrangler <code>vars</code>.</td></tr>
 </table></div>
 
 <h3 id="autoscaling-spec"><a class="anchor" href="#autoscaling-spec">autoscaling</a></h3>
 <div class="tbl-wrap"><table>
-<tr><th>Field</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
-<tr><td><code>autoscaling.enabled</code></td><td>bool</td><td>no</td><td><code>false</code></td><td>Materializes a KEDA ScaledObject over the operator's <code>/state</code>-derived metrics; paused during rollouts.</td></tr>
-<tr><td><code>autoscaling.minReplicas</code></td><td>int32 ≥ 1</td><td>no</td><td><code>2</code></td><td>Scale floor; keep ≥ 2 for HA. Also the PodDisruptionBudget floor.</td></tr>
-<tr><td><code>autoscaling.maxReplicas</code></td><td>int32 ≥ 1</td><td>no</td><td><code>10</code></td><td>The tenant's cost ceiling.</td></tr>
-<tr><td><code>autoscaling.targets.residentCellUtilization</code></td><td>int32 1-100</td><td>no</td><td><code>70</code></td><td>Target fleet-average percentage of occupied vs <code>maxResidentCells</code>. Conservative by default, since celld has no rebalancer. Any shedding pod triggers scale-up regardless.</td></tr>
-<tr><td><code>autoscaling.targets.p95LatencyMs</code></td><td>int32 ≥ 1</td><td>no</td><td>unset</td><td>Optional gateway-side latency target so traffic-bound, stateless-heavy apps scale even at low cell counts. Unset disables the latency signal.</td></tr>
+<tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+<tr><td><code>autoscaling.enabled</code></td><td>bool</td><td><code>false</code></td><td>Materializes a KEDA ScaledObject over the operator's <code>/state</code>-derived metrics; paused whenever the fleet is not <code>Ready</code>. Requires KEDA v2.12.0+.</td></tr>
+<tr><td><code>autoscaling.minReplicas</code></td><td>int32 ≥ 1</td><td><code>2</code></td><td>Scale floor; keep ≥ 2 for HA. Must not exceed <code>maxReplicas</code>.</td></tr>
+<tr><td><code>autoscaling.maxReplicas</code></td><td>int32 ≥ 1</td><td><code>10</code></td><td>The tenant's cost ceiling.</td></tr>
+<tr><td><code>autoscaling.targets.residentCellUtilization</code></td><td>int32, 1–100</td><td><code>70</code></td><td>Target fleet-average percentage of occupied cells vs <code>maxResidentCells</code>. Any shedding pod triggers scale-up regardless.</td></tr>
+<tr><td><code>autoscaling.targets.p95LatencyMs</code></td><td>int32 ≥ 1</td><td>unset</td><td>Optional latency target from Istio destination telemetry in the same Prometheus. Unset disables the latency signal.</td></tr>
 </table></div>
 
 <h3 id="telemetry-spec"><a class="anchor" href="#telemetry-spec">telemetry</a></h3>
 <div class="tbl-wrap"><table>
-<tr><th>Field</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
-<tr><td><code>telemetry.enabled</code></td><td>bool</td><td>no</td><td><code>true</code></td><td>Enables celld tracing (<code>CELLD_OTEL=1</code>).</td></tr>
-<tr><td><code>telemetry.sink</code></td><td><code>bucket</code> | <code>otlp</code></td><td>no</td><td><code>bucket</code></td><td>Destination. Unset means <code>bucket</code>, unless <code>otlpEndpoint</code> is set, in which case <code>otlp</code> is inferred.</td></tr>
-<tr><td><code>telemetry.otlpEndpoint</code></td><td>string</td><td>no</td><td>unset</td><td>Collector base URL for the <code>otlp</code> sink (<code>OTEL_EXPORTER_OTLP_ENDPOINT</code>).</td></tr>
-<tr><td><code>telemetry.retention</code></td><td>string</td><td>no</td><td><code>30d</code></td><td><code>CELLD_OTEL_RETENTION</code> for the bucket sink, or <code>none</code> to defer to bucket lifecycle rules. Ignored by the otlp sink.</td></tr>
+<tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+<tr><td><code>telemetry.enabled</code></td><td>bool</td><td><code>true</code></td><td>Enables celld tracing. <code>false</code> sets <code>CELLD_OTEL=0</code>.</td></tr>
+<tr><td><code>telemetry.sink</code></td><td><code>bucket</code> | <code>otlp</code></td><td><code>bucket</code></td><td>Destination. Unset means <code>bucket</code>, unless <code>otlpEndpoint</code> is set, which implies <code>otlp</code>.</td></tr>
+<tr><td><code>telemetry.otlpEndpoint</code></td><td>string</td><td><code>http://localhost:4318</code> for <code>otlp</code></td><td>Collector base URL. On celld v0.5+ it becomes the value of <code>CELLD_OTEL</code>.</td></tr>
+<tr><td><code>telemetry.retention</code></td><td>string</td><td><code>30d</code></td><td><code>CELLD_OTEL_RETENTION</code> for the bucket sink, or <code>none</code> to defer to bucket lifecycle rules. Ignored by the otlp sink.</td></tr>
 </table></div>
 
 <h2 id="status"><a class="anchor" href="#status">Status</a></h2>
@@ -73,40 +100,46 @@ fleet, and the app are 1:1:1.
 <h3 id="phase"><a class="anchor" href="#phase">Phase</a></h3>
 <div class="tbl-wrap"><table>
 <tr><th>Phase</th><th>Meaning</th></tr>
-<tr><td><code>Pending</code></td><td>Initial reconciliation in progress.</td></tr>
-<tr><td><code>Ready</code></td><td>Fleet converged: all pods ready, <code>restoring=0</code>, rolled-out version matches.</td></tr>
-<tr><td><code>RollingOut</code></td><td>The gated rollout is stepping through ordinals.</td></tr>
-<tr><td><code>Recreating</code></td><td>A <code>Recreate</code> upgrade is in progress (scale to zero, drain, restart).</td></tr>
-<tr><td><code>Degraded</code></td><td>A refusal or stuck gate; the message names it (e.g. a breaking upgrade without Recreate, or a rollout wait that exceeded its budget).</td></tr>
+<tr><td><code>Pending</code></td><td>Creating or converging: pods not all ready, the fleet state incomplete, <code>restoring</code> above zero, or some pod not yet serving the expected deployment.</td></tr>
+<tr><td><code>Ready</code></td><td>Every pod is ready and updated, the fleet reports <code>restoring=0</code>, and every pod serves the expected deployment with nothing draining or swapping.</td></tr>
+<tr><td><code>RollingOut</code></td><td>The gated rollout is stepping through ordinals, or waiting for KEDA to pause.</td></tr>
+<tr><td><code>Recreating</code></td><td>A <code>Recreate</code> change is in progress: scale to zero, wait for every old pod to disappear, start the new fleet.</td></tr>
+<tr><td><code>Degraded</code></td><td>A refusal: the spec failed validation (<code>SpecValid: False</code>), or a celld change is not rolling-safe, is an unsupported downgrade, or names an unparseable image. The message names it. Rollouts have no timeout, so a stuck gate stays in <code>RollingOut</code>.</td></tr>
 </table></div>
 
 <h3 id="status-fields"><a class="anchor" href="#status-fields">Fields</a></h3>
 <div class="tbl-wrap"><table>
 <tr><th>Field</th><th>Description</th></tr>
-<tr><td><code>status.rolledOutAppVersion</code></td><td>The appVersion every fleet pod is serving; trails <code>spec.appVersion</code> while a rollout is in flight. In <code>auto</code> mode, the concrete version being served.</td></tr>
-<tr><td><code>status.rollout.partition</code></td><td>The StatefulSet rolling-update partition owned by the rollout controller. 0 means no rollout in progress.</td></tr>
-<tr><td><code>status.rollout.waitingOn</code></td><td>The gate the rollout is blocked on, e.g. <code>celld-2: Ready</code> or <code>fleet: restoring=3</code>. Empty when not waiting.</td></tr>
-<tr><td><code>status.fleet.ready</code></td><td>Pods passing the celld health check.</td></tr>
-<tr><td><code>status.fleet.restoring</code></td><td>Fleet-wide sum of cold routes holding or awaiting an activation permit. Rollouts step only at 0.</td></tr>
+<tr><td><code>status.expectedAppVersion</code></td><td>The resolved deployment target: <code>spec.appVersion</code>, or the tracked pointer in <code>auto</code> mode.</td></tr>
+<tr><td><code>status.rolledOutAppVersion</code></td><td>Set only when every pod serves the expected version with nothing draining or swapping; empty otherwise.</td></tr>
+<tr><td><code>status.deployments[]</code></td><td>Fresh per-pod observations from <code>/state</code>: <code>name</code>, <code>version</code>, <code>generation</code>, <code>draining</code>, <code>swapping</code>. Missing pods are not inferred.</td></tr>
+<tr><td><code>status.rollout.partition</code></td><td>The StatefulSet partition owned by the rollout controller; 0 when no rollout is in progress.</td></tr>
+<tr><td><code>status.rollout.waitingOn</code></td><td>The gate the operator is waiting on, e.g. <code>chat-celld-2: not ready</code> or <code>waiting for rollout settle interval</code>. Empty when not waiting.</td></tr>
+<tr><td><code>status.fleet.ready</code></td><td>Ready pods, from the StatefulSet.</td></tr>
+<tr><td><code>status.fleet.restoring</code></td><td>Fleet-wide sum of cold activations holding or awaiting a permit. Rollouts step only at 0.</td></tr>
 </table></div>
 
 <h3 id="conditions"><a class="anchor" href="#conditions">Conditions</a></h3>
 <div class="tbl-wrap"><table>
 <tr><th>Condition</th><th>Meaning when not <code>True</code></th></tr>
-<tr><td><code>Available</code> / <code>Progressing</code> / <code>Degraded</code></td><td>Standard phase reflection; the <code>Degraded</code> message names the refusal.</td></tr>
-<tr><td><code>BucketCredentialsReady</code></td><td><code>iamRole: auto</code> provisioning is not implemented yet, so annotate the fleet ServiceAccount yourself.</td></tr>
-<tr><td><code>IngressReady</code></td><td>Gateway API CRDs missing, or a route error; hostnames are not routed.</td></tr>
-<tr><td><code>MeshPolicyReady</code></td><td>Istio absent; NetworkPolicy alone guards :8081.</td></tr>
-<tr><td><code>AutoscalingReady</code></td><td>KEDA absent; <code>spec.autoscaling</code> has no effect.</td></tr>
-<tr><td><code>DeployTrackingReady</code></td><td><code>VersionMismatch</code>: the bucket's <code>deploy/current.json</code> and <code>spec.appVersion</code> disagree (pinned mode), or tracking reads fail.</td></tr>
+<tr><td><code>SpecValid</code></td><td><code>InvalidConfiguration</code>: schema, CEL, or allowlist validation failed; nothing is created or changed until it is fixed.</td></tr>
+<tr><td><code>Available</code> / <code>Progressing</code> / <code>Degraded</code></td><td>Phase reflection; <code>Progressing</code> and <code>Degraded</code> carry <code>waitingOn</code> as their message.</td></tr>
+<tr><td><code>FleetStateReady</code></td><td><code>Unavailable</code>: the operator could not get a complete <code>/state</code> sweep (a pod missing, unready, or unreachable).</td></tr>
+<tr><td><code>BucketCredentialsReady</code></td><td><code>ProvisioningNotImplemented</code>: <code>iamRole: auto</code> is not implemented; annotate the fleet ServiceAccount yourself.</td></tr>
+<tr><td><code>DeployTrackingReady</code></td><td>Present only with tracking. <code>BucketUnreachable</code> (holding the last known version), <code>UnsupportedStore</code> (<code>auto</code> on <code>gs://</code>/<code>az://</code>), or <code>VersionMismatch</code> (pinned mode: the bucket pointer and <code>spec.appVersion</code> disagree).</td></tr>
+<tr><td><code>IngressReady</code></td><td>Present only with hostnames. <code>Unknown</code> for Ingress and VirtualService; <code>False</code> for missing CRDs, route errors, or dropped retries. See <a href="/docs/networking/#ready">Networking</a>.</td></tr>
+<tr><td><code>MeshPolicyReady</code></td><td><code>IstioUnavailable</code>: NetworkPolicy alone guards :8081.</td></tr>
+<tr><td><code>AutoscalingReady</code></td><td>Present only with autoscaling. <code>KEDAUnavailable</code>: <code>spec.autoscaling</code> has no effect.</td></tr>
 </table></div>
 
 <h3 id="printers"><a class="anchor" href="#printers">Printer columns</a></h3>
 <pre class="code"><code><span class="p">$</span> kubectl get workerapps -n tenant-acme
-NAME   PHASE   APP          READY   RESTORING   AGE
+NAME   PHASE   APP                READY   RESTORING   AGE
 chat   Ready   a3f9c1d2e4b57081   3       0           2m</code></pre>
 
 <h2 id="example"><a class="anchor" href="#example">Complete example</a></h2>
+<p>A production-shaped fleet with fleet durability, persistent storage, bucket tracking,
+and autoscaling. The IAM role and endpoint must be on the operator's allowlists.</p>
 <pre class="code"><code><span class="k">apiVersion:</span> <span class="s">celld-operator.io/v1alpha1</span>
 <span class="k">kind:</span> <span class="s">WorkerApp</span>
 <span class="k">metadata:</span>
@@ -114,9 +147,11 @@ chat   Ready   a3f9c1d2e4b57081   3       0           2m</code></pre>
   <span class="k">namespace:</span> <span class="s">tenant-acme</span>
 <span class="k">spec:</span>
   <span class="k">hostnames:</span> <span class="s">["chat.acme.example.com"]</span>
-  <span class="k">appVersion:</span> <span class="s">a3f9c1d2e4b57081</span>
+  <span class="k">appVersion:</span> <span class="s">auto</span>
+  <span class="k">deployTrackingSecretRef:</span> <span class="s">chat-deploy-reader</span>
+  <span class="k">deploymentPolicy:</span> <span class="s">InPlace</span>
   <span class="k">celld:</span>
-    <span class="k">image:</span> <span class="s">ghcr.io/denoland/celld:v0.2.0</span>
+    <span class="k">image:</span> <span class="s">ghcr.io/denoland/celld:v0.6.2</span>
     <span class="k">updateStrategy:</span> <span class="s">Rolling</span>
   <span class="k">replicas:</span> <span class="n">3</span>
   <span class="k">bucket:</span>
@@ -128,8 +163,11 @@ chat   Ready   a3f9c1d2e4b57081   3       0           2m</code></pre>
   <span class="k">resources:</span>
     <span class="k">memoryGi:</span> <span class="n">8</span>
     <span class="k">maxResidentCells:</span> <span class="n">1000</span>
-  <span class="k">vars:</span>
-    <span class="k">secretRef:</span> <span class="s">chat-vars</span>
+    <span class="k">cpuMillis:</span> <span class="n">2000</span>
+  <span class="k">durability:</span> <span class="s">fleet</span>
+  <span class="k">storage:</span>
+    <span class="k">sizeGi:</span> <span class="n">100</span>
+    <span class="k">storageClassName:</span> <span class="s">your-durable-class</span>  <span class="c"># pods now require distinct hosts</span>
   <span class="k">service:</span>
     <span class="k">type:</span> <span class="s">ClusterIP</span>
   <span class="k">websockets:</span> <span class="n">true</span>

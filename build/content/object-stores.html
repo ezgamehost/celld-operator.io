@@ -1,62 +1,75 @@
 <h1>Object stores</h1>
 <p class="lead">
 The bucket is celld's control plane <em>and</em> durability root. It must enforce
-conditional writes atomically and read a write back immediately. A store that merely
-<em>accepts</em> the conditional headers without enforcing them fails late and silently,
-as two nodes owning one cell.
+conditional writes atomically, return exact byte ranges, and read a write back
+immediately. A store that merely <em>accepts</em> the conditional headers without
+enforcing them fails late and silently, as two nodes owning one cell.
 </p>
 
-<h2 id="contract"><a class="anchor" href="#contract">The fencing contract</a></h2>
-<p>celld requires three properties from the store:</p>
+<h2 id="contract"><a class="anchor" href="#contract">The storage contract</a></h2>
+<p>celld requires four properties from the store:</p>
 <ol>
-<li><strong>Conditional create</strong>: a write that fails when the object already exists
-(<code>If-None-Match: *</code> on S3-compatible stores).</li>
+<li><strong>Conditional create</strong>: a write that fails when the object already
+exists (<code>If-None-Match: *</code> on S3-compatible stores).</li>
 <li><strong>Conditional overwrite</strong>: a write that fails when the object changed
 since it was read (ETag compare-and-swap via <code>If-Match</code>; on GCS, the
 <code>x-goog-if-generation-match</code> precondition).</li>
-<li><strong>Read-after-write consistency</strong>: a completed write is visible to the
-next read.</li>
+<li><strong>Read-after-write consistency</strong>: a read after a successful write returns
+that write.</li>
+<li><strong>Ranged reads</strong>: a read returns exactly the requested byte range.</li>
 </ol>
 <p>
-How celld uses them: each cell has one ownership record naming the owner node and a
-fencing <em>epoch</em>. Acquiring a cell is a conditional write, so the store accepts
-exactly one winner. The replication stream itself uses plain writes — the epoch in the
-key is the fence, so a fenced node's writes land in a superseded prefix.
+Epoch GC (<code>CELLD_LTX_RETENTION_SECS</code>, off by default) additionally needs
+list-after-write consistency. The operator exposes no field for it.
+</p>
+
+<h3 id="mechanism"><a class="anchor" href="#mechanism">How celld uses it</a></h3>
+<p>
+Each cell has one <strong>ownership record</strong> naming the owner node's session and a
+fencing <em>epoch</em>. A node acquires a cell with a conditional create, or a
+compare-and-swap on an existing record, so the store admits exactly one winner, and
+every activation advances the epoch. The replicator copies each cell's SQLite data to
+<code>cells/&lt;cell&gt;/ltx/e&lt;epoch&gt;/</code> with plain writes: the epoch in the key
+is the fence, so a node that lost ownership can only write into a superseded prefix.
 </p>
 <p>
-Two further mechanisms turn that into the RPO=0 promise. The <strong>acknowledgement
-rule</strong>: a write is held until the replicator proves it reached the bucket, and
-only then does celld re-read the ownership record and acknowledge — and only if the
-record still names this node at this epoch. Because it is a read, not a clock
-comparison, a paused process or skewed clock cannot pass it. The <strong>epoch
-seal</strong>: the first activation to restore from an epoch writes
-<code>e&lt;epoch&gt;.seal.json</code> with a conditional create, fixing the highest
-transaction any later restore of that epoch may read; the first restorer wins, and if
-the seal write fails the activation fails. Without it, a fenced node's post-takeover
-appends could resurface in a later restore. A node that cannot reach the bucket cannot
-renew its lease, stops writing, and releases its residency: node failure is a normal
-input, not a recovery procedure.
+The <strong>acknowledgement rule</strong> holds every response until a durability proof
+covers the writes it can reveal. After a bucket proof, celld re-reads the ownership
+record and acknowledges only if it still names this node at this epoch; because it is a
+read, not a clock comparison, a paused process or a skewed clock cannot pass it. A fleet
+proof instead waits for follower nodes to fsync the write, and a takeover seals the
+prior owner's node-log session before it restores, so a stale owner cannot complete
+another fleet proof. A node that cannot renew its lease fences itself: node failure is a
+normal input, not a recovery procedure.
 </p>
 
 <h2 id="qualified"><a class="anchor" href="#qualified">Qualified and disqualified stores</a></h2>
 <div class="tbl-wrap"><table>
 <tr><th>Status</th><th>Stores</th></tr>
-<tr><td><span class="status-ok">Qualified</span></td><td>Amazon S3, Cloudflare R2, Tigris (S3 dialect) and Google Cloud Storage. celld's release tests run against R2; the AWS S3 path uses the same client and headers.</td></tr>
-<tr><td><span class="status-bad">Not qualified</span></td><td>MinIO community edition, Backblaze B2, Hetzner Object Storage, DigitalOcean Spaces. celld is <em>not correct</em> on these: two nodes can own one cell.</td></tr>
-<tr><td>Unproven</td><td>Young S3-compatible implementations. Treat as disqualified until you qualify them yourself with the checks below — a store may accept the conditional headers without enforcing them, which fails silently.</td></tr>
+<tr><td><span class="status-ok">Qualified</span></td><td>Amazon S3, Cloudflare R2, Tigris, Google Cloud Storage, and Azure Blob Storage. celld's release tests run against R2; the S3 path uses the same client and headers. Azure was qualified under an account key, a VM managed identity, and an AKS workload identity.</td></tr>
+<tr><td><span class="status-mid">Not for production</span></td><td>MinIO community edition: it passes the storage test but is not qualified for production. Avoid <code>RELEASE.2025-09-06T17-38-46Z</code>, which rejects the first deploy. Azurite is for local development only.</td></tr>
+<tr><td><span class="status-bad">Not qualified</span></td><td>Backblaze B2, Hetzner Object Storage, DigitalOcean Spaces. They do not implement the required conditional writes: two nodes can own one cell.</td></tr>
+<tr><td>Unproven</td><td>Anything else. Treat it as disqualified until you qualify it yourself with the checks below.</td></tr>
+</table></div>
+
+<h2 id="dialects"><a class="anchor" href="#dialects">Dialects and credentials</a></h2>
+<p>
+celld speaks three dialects, so <code>spec.bucket.name</code> is always
+<code>s3://</code>, <code>gs://</code>, or <code>az://</code>, followed by the bucket and an
+optional prefix. The CRD rejects anything else, and the bucket name, endpoint, and
+storage account are immutable once set: moving a fleet to a new bucket means a new
+WorkerApp.
+</p>
+<div class="tbl-wrap"><table>
+<tr><th>Dialect</th><th>Notes</th><th>Credentials</th></tr>
+<tr><td><code>s3://</code></td><td>AWS S3, R2, Tigris, and other S3-compatible stores. <code>endpoint</code> (HTTPS, and on the operator's <code>allowedBucketEndpoints</code> list) for anything but AWS; <code>region</code> when it cannot be inferred (<code>auto</code> for R2).</td><td><code>iamRole</code> (EKS IRSA); EKS Pod Identity with <code>credentialsFrom</code> left empty; or <code>secretRef</code> with <code>AWS_ACCESS_KEY_ID</code> / <code>AWS_SECRET_ACCESS_KEY</code>.</td></tr>
+<tr><td><code>gs://</code></td><td>Cloud Storage XML API with generation preconditions. celld rejects an endpoint and S3 credentials, and ignores the region.</td><td>Google OAuth credentials. The operator does not wire GKE Workload Identity yet.</td></tr>
+<tr><td><code>az://</code></td><td>The name is a Blob Storage <em>container</em>; <code>storageAccount</code> is required. celld rejects an endpoint. Public Azure cloud only.</td><td><code>azureClientID</code> (AKS workload identity, needs Storage Blob Data Contributor); <code>secretRef</code> with <code>AZURE_STORAGE_ACCOUNT_KEY</code>; or a node managed identity with only <code>storageAccount</code> set.</td></tr>
 </table></div>
 <p>
-celld speaks exactly two dialects — S3 and Google Cloud Storage — so a bucket spec is
-either <code>s3://…</code> or <code>gs://…</code> and nothing else. Stores that expose no
-S3-compatible API (Azure Blob Storage among them) cannot back a fleet, whatever their
-consistency guarantees; the operator's CRD rejects the spec outright.
-</p>
-<p>
-For <code>gs://</code> buckets, celld uses the Cloud Storage XML API with generation
-preconditions and Application Default Credentials. It rejects an S3
-<code>--endpoint</code> for a <code>gs://</code> bucket, rejects S3 static credentials
-for one (so <code>credentialsFrom.secretRef</code> is a startup failure, not a
-fallback), and ignores the storage region.
+<code>appVersion: auto</code> reads the deploy pointer over the S3 API, so it works only
+for <code>s3://</code> buckets; <code>gs://</code> and <code>az://</code> fleets pin
+<code>appVersion</code>.
 </p>
 
 <h2 id="qualification"><a class="anchor" href="#qualification">Qualifying a store yourself</a></h2>
@@ -64,52 +77,52 @@ fallback), and ignores the storage region.
 Before trusting any store not on the qualified list, and again after every store
 upgrade, run both checks:
 </p>
-<pre class="code"><code><span class="c"># 1. celld's own sequential CAS contract test (from the celld repo).</span>
-<span class="c">#    S3-compatible store:</span>
-<span class="p">$</span> CELLD_CAS_LIVE=1 CELLD_CAS_BUCKET=&lt;bucket&gt; CELLD_CAS_ENDPOINT=&lt;url&gt; \
-    cargo test -p celld put_cas_contract -- --nocapture
-<span class="c">#    GCS (no endpoint — celld rejects one for gs://):</span>
-<span class="p">$</span> CELLD_CAS_LIVE=1 CELLD_CAS_BUCKET=gs://&lt;bucket&gt; \
-    cargo test -p celld put_cas_contract -- --nocapture
+<pre class="code"><code><span class="c"># 1. celld's own sequential contract test: create, reject-create, update,</span>
+<span class="c">#    reject-stale, against the real bucket (s3://, gs://, or az://).</span>
+<span class="p">$</span> celld diagnose --bucket &lt;bucket&gt; [--endpoint &lt;url&gt;] [--region &lt;region&gt;]
 
-<span class="c"># 2. The operator repo's concurrency hammer (N racers, exactly one winner</span>
-<span class="c">#    per round). S3 dialect only:</span>
+<span class="c"># 2. The operator repo's concurrency hammer: N racers, exactly one winner</span>
+<span class="c">#    per round. S3 dialect only.</span>
 <span class="p">$</span> go run ./hack/cas-hammer --bucket &lt;bucket&gt; --endpoint &lt;url&gt; \
     --writers 8 --rounds 32</code></pre>
 <p>
-The sequential test proves the condition is applied at all; only the hammer probes
-atomicity under race. The hammer speaks the S3 dialect, so a <code>gs://</code> bucket
-gets the contract test alone.
+The sequential test proves the condition is applied at all; every celld node repeats it,
+plus a ranged-read check, before it serves, and stops if the store violates the contract.
+Only the hammer probes atomicity under race.
 </p>
 <p>
-<strong>Read both failing exit codes as disqualifying.</strong> Exit 1 means a round
-admitted more than one winner — the store cannot fence celld cells. Exit 2 means the run
-could not complete, and one cause is a conditional PUT answering with something other
-than a precondition failure, which is equally a store that does not speak the protocol
-celld depends on. Only exit 0 qualifies.
+<strong>Read both failing hammer exit codes as disqualifying.</strong> Exit 1 means a
+round admitted more than one winner: the store cannot fence celld cells. Exit 2 means
+the run could not complete, which includes a conditional PUT answering with something
+other than a precondition failure. Only exit 0 qualifies. Both tests write: the probe
+uses the reserved <code>probe/</code> prefix, the hammer its own <code>--prefix</code>.
 </p>
+
+<h2 id="prefixes"><a class="anchor" href="#prefixes">Prefixes and credentials</a></h2>
+<p>
+A fleet's bucket may carry a key prefix, such as <code>s3://platform-cells/apps/chat</code>,
+and every fleet object lives under it. celld reserves <code>probe/</code>,
+<code>cells/</code>, <code>nodes/</code>, <code>node-cells/</code>, <code>fleet/</code>,
+<code>deploy/</code>, <code>deploy-blobs/</code>, <code>log/</code>, <code>wake/</code>, and
+<code>telemetry/</code> under the prefix and deletes objects under some of them, so
+applications must not write there. Many fleets can share one physical bucket while
+credential scoping keeps authority per fleet.
+</p>
+<div class="danger">
+<p><strong>Bucket credentials are fleet-admin authority.</strong> The bucket holds
+deployments, cell state, leases, and the peer-authentication secret, so whoever holds
+the credential controls the fleet. Scope one identity per fleet to that fleet's prefix
+and nothing else, grant put <em>and</em> delete there (the startup probe writes and
+removes an object under <code>probe/</code>), prefer workload identity over static keys,
+and rotate immediately after suspected disclosure.</p>
+</div>
 
 <h2 id="topology"><a class="anchor" href="#topology">Placement and failure domains</a></h2>
 <ul>
-<li><strong>The operator never runs the store.</strong> Run a managed store, or operate
+<li><strong>The operator never runs the store.</strong> Use a managed store, or operate
 your own outside the fleet's failure domain.</li>
 <li><strong>Keep the store out of the workload cluster.</strong> A cluster incident must
 not take out compute and the source of truth together.</li>
 <li><strong>RPO=0 is inherited from the store's durability.</strong> That is the argument
 for a managed store even in otherwise self-hosted deployments.</li>
 </ul>
-
-<h2 id="prefixes"><a class="anchor" href="#prefixes">Prefixes and credentials</a></h2>
-<p>
-A fleet's bucket may carry a key prefix, such as <code>s3://platform-cells/apps/chat</code>,
-and all fleet objects (deployments, SQLite replicas, ownership records, node leases, the
-peer-auth secret, telemetry) live under it. Many fleets can share one physical bucket
-while IAM scoping keeps authority per-fleet.
-</p>
-<div class="danger">
-<p><strong>Bucket credentials are fleet-admin authority.</strong> Whoever holds them
-controls the fleet: deployments, cell state, leases, the peer-auth secret. Scope one IAM
-role per fleet to that fleet's prefix and nothing else; prefer IRSA / Workload Identity
-over static keys (<code>credentialsFrom.secretRef</code> exists for stores without role
-auth); rotate immediately after suspected disclosure.</p>
-</div>

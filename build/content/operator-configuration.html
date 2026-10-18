@@ -5,48 +5,75 @@ absent. Flags configure the operator once; per-app behavior lives in the
 <a href="/docs/workerapp/">WorkerApp resource</a>.
 </p>
 
-<h2 id="flags"><a class="anchor" href="#flags">Flags and Helm values</a></h2>
-<p>Each flag maps to a value under <code>operator.*</code> in the chart's
-<code>values.yaml</code>:</p>
+<h2 id="trust"><a class="anchor" href="#trust">Trust and scope</a></h2>
+<p>These flags decide which WorkerApps the operator accepts. A WorkerApp outside them
+reports <code>SpecValid: False</code> and nothing is created for it.</p>
 <div class="tbl-wrap"><table>
 <tr><th>Flag</th><th>Helm value</th><th>Default</th><th>Purpose</th></tr>
-<tr><td><code>--ingress-mode</code></td><td><code>operator.ingressMode</code></td><td><code>httproute</code></td><td>How hostnames are routed: <code>httproute</code> (Gateway API), <code>virtualservice</code> (classic Istio), <code>ingress</code> (<code>networking.k8s.io/v1</code>), or <code>none</code>. See <a href="/docs/networking/#modes">ingress modes</a>.</td></tr>
-<tr><td><code>--gateway-name</code></td><td><code>operator.gatewayName</code></td><td><code>edge</code></td><td>Shared Gateway that HTTPRoutes attach to (<code>httproute</code> mode).</td></tr>
-<tr><td><code>--gateway-namespace</code></td><td><code>operator.gatewayNamespace</code></td><td><code>infra</code></td><td>Namespace of that Gateway.</td></tr>
-<tr><td><code>--istio-gateways</code></td><td><code>operator.istioGateways</code></td><td>unset</td><td>Pre-existing <code>networking.istio.io</code> Gateways (<code>namespace/name</code>, comma-separated) that VirtualServices bind to in <code>virtualservice</code> mode.</td></tr>
-<tr><td><code>--ingress-class</code></td><td><code>operator.ingressClass</code></td><td>cluster default</td><td>IngressClass for <code>ingress</code> mode.</td></tr>
-<tr><td><code>--cluster-issuer</code></td><td><code>operator.clusterIssuer</code></td><td>unset</td><td>cert-manager ClusterIssuer for <code>ingress</code> mode; when set, each app's Ingress requests its own TLS certificate. Drain-retry and WebSocket policies become ingress-nginx annotations in this mode (ignored by other controllers).</td></tr>
-<tr><td><code>--prometheus-url</code></td><td><code>operator.prometheusURL</code></td><td><code>http://prometheus-operated.monitoring.svc:9090</code></td><td>Where KEDA queries the operator's <code>celld_*</code> metrics.</td></tr>
-<tr><td><code>--operator-namespace</code></td><td>release namespace</td><td><code>celld-operator-system</code></td><td>Allowed by fleet NetworkPolicies to reach :8081.</td></tr>
-<tr><td><code>--operator-principal</code></td><td><code>operator.operatorPrincipal</code></td><td>derived</td><td>Operator identity in Istio AuthorizationPolicies; empty derives <code>cluster.local/ns/&lt;release ns&gt;/sa/&lt;service account&gt;</code>.</td></tr>
-<tr><td><code>--state-poll-interval</code></td><td><code>operator.statePollInterval</code></td><td><code>15s</code></td><td><code>/state</code> polling cadence for metrics export and rollout gating.</td></tr>
-<tr><td><code>--deploy-poll-interval</code></td><td><code>operator.deployPollInterval</code></td><td><code>60s</code></td><td>Bucket <code>deploy/current.json</code> polling cadence for <code>appVersion: auto</code> and version-mismatch detection.</td></tr>
+<tr><td><code>--allowed-image-prefixes</code></td><td><code>operator.allowedImagePrefixes</code></td><td><code>ghcr.io/denoland/celld:</code></td><td>Comma-separated prefixes a <code>celld.image</code> must start with.</td></tr>
+<tr><td><code>--allowed-iam-roles</code></td><td><code>operator.allowedIAMRoles</code></td><td>empty</td><td>Exact role ARNs allowed in <code>credentialsFrom.iamRole</code>.</td></tr>
+<tr><td><code>--allowed-azure-client-ids</code></td><td><code>operator.allowedAzureClientIDs</code></td><td>empty</td><td>Exact Azure workload identity client IDs allowed in <code>credentialsFrom.azureClientID</code>.</td></tr>
+<tr><td><code>--allowed-bucket-endpoints</code></td><td><code>operator.allowedBucketEndpoints</code></td><td>empty</td><td>Exact HTTPS endpoints allowed in <code>bucket.endpoint</code>; empty permits AWS S3 only.</td></tr>
+<tr><td><code>--watch-namespace</code></td><td><code>operator.watchNamespace</code></td><td>empty (cluster-wide)</td><td>Restrict reconciliation, the cache, and the chart's workload Role to one namespace.</td></tr>
 </table></div>
+
+<h2 id="routing"><a class="anchor" href="#routing">Ingress and routing</a></h2>
+<div class="tbl-wrap"><table>
+<tr><th>Flag</th><th>Helm value</th><th>Default</th><th>Purpose</th></tr>
+<tr><td><code>--ingress-mode</code></td><td><code>operator.ingressMode</code></td><td><code>httproute</code></td><td><code>httproute</code> (Gateway API), <code>virtualservice</code> (classic Istio), <code>ingress</code> (<code>networking.k8s.io/v1</code>), or <code>none</code>. See <a href="/docs/networking/#modes">ingress modes</a>.</td></tr>
+<tr><td><code>--gateway-name</code></td><td><code>operator.gatewayName</code></td><td><code>edge</code></td><td>Shared Gateway that HTTPRoutes attach to.</td></tr>
+<tr><td><code>--gateway-namespace</code></td><td><code>operator.gatewayNamespace</code></td><td><code>infra</code></td><td>Namespace of that Gateway.</td></tr>
+<tr><td><code>--httproute-retries</code></td><td><code>operator.httpRouteRetries</code></td><td><code>false</code></td><td>Add a retry on 503 to HTTPRoutes. Requires experimental-channel Gateway API CRDs and a gateway that implements it.</td></tr>
+<tr><td><code>--istio-gateways</code></td><td><code>operator.istioGateways</code></td><td>unset</td><td>Pre-existing <code>networking.istio.io</code> Gateways (<code>namespace/name</code>, comma-separated) for <code>virtualservice</code> mode.</td></tr>
+<tr><td><code>--ingress-class</code></td><td><code>operator.ingressClass</code></td><td>cluster default</td><td>IngressClass for <code>ingress</code> mode.</td></tr>
+<tr><td><code>--cluster-issuer</code></td><td><code>operator.clusterIssuer</code></td><td>unset</td><td>cert-manager ClusterIssuer for <code>ingress</code> mode; each app's Ingress then requests its own TLS certificate.</td></tr>
+</table></div>
+
+<h2 id="fleet"><a class="anchor" href="#fleet">Fleet access and polling</a></h2>
+<div class="tbl-wrap"><table>
+<tr><th>Flag</th><th>Helm value</th><th>Default</th><th>Purpose</th></tr>
+<tr><td><code>--operator-namespace</code></td><td>release namespace</td><td><code>celld-operator-system</code></td><td>Namespace whose manager pods fleet NetworkPolicies admit to <code>:8081</code>.</td></tr>
+<tr><td><code>--operator-principal</code></td><td><code>operator.operatorPrincipal</code></td><td>derived</td><td>Operator identity in Istio AuthorizationPolicies; empty derives <code>cluster.local/ns/&lt;release ns&gt;/sa/&lt;service account&gt;</code>. Set it when your trust domain is not <code>cluster.local</code>.</td></tr>
+<tr><td><code>--state-poll-interval</code></td><td><code>operator.statePollInterval</code></td><td><code>15s</code></td><td><code>/state</code> polling cadence for metrics export. Keep it well below 60s, the freshness limit on scaling queries.</td></tr>
+<tr><td><code>--deploy-poll-interval</code></td><td><code>operator.deployPollInterval</code></td><td><code>60s</code></td><td>Bucket <code>deploy/current.json</code> cadence for <code>appVersion: auto</code> and drift checks.</td></tr>
+<tr><td><code>--prometheus-url</code></td><td><code>operator.prometheusURL</code></td><td><code>http://prometheus-operated.monitoring.svc:9090</code></td><td>Where KEDA queries the operator's <code>celld_*</code> metrics.</td></tr>
+</table></div>
+<p>
+The operator exits at startup on an unknown ingress mode or a non-positive poll interval.
+</p>
 
 <h2 id="chart"><a class="anchor" href="#chart">Other chart values</a></h2>
 <div class="tbl-wrap"><table>
 <tr><th>Value</th><th>Default</th><th>Purpose</th></tr>
-<tr><td><code>controllerManager.replicas</code></td><td><code>1</code></td><td>Manager replicas; leader election is on (<code>--leader-elect</code>).</td></tr>
+<tr><td><code>controllerManager.replicas</code></td><td><code>1</code></td><td>Manager replicas; leader election is on (<code>--leader-elect</code>), and only the leader polls fleets.</td></tr>
 <tr><td><code>controllerManager.container.image.repository</code></td><td><code>ghcr.io/ezgamehost/celld-operator</code></td><td>Operator image.</td></tr>
 <tr><td><code>controllerManager.container.image.tag</code></td><td><code>""</code></td><td>Empty uses the chart's <code>appVersion</code>, the operator build the chart was released with.</td></tr>
-<tr><td><code>crd.enable</code></td><td><code>true</code></td><td>Include the CRDs in the release.</td></tr>
+<tr><td><code>controllerManager.container.resources</code></td><td>10m / 128Mi requests, 500m / 512Mi limits</td><td>A starting point, not a capacity guarantee: size it with a load test for your fleet count.</td></tr>
+<tr><td><code>metrics.enable</code> / <code>metrics.port</code> / <code>metrics.insecure</code></td><td><code>true</code> / <code>8443</code> / <code>false</code></td><td>The manager's metrics endpoint. Secure mode serves HTTPS with authn/authz; insecure mode serves HTTP.</td></tr>
+<tr><td><code>prometheus.enable</code></td><td><code>false</code></td><td>Create a ServiceMonitor (with <code>honorLabels</code>, so the <code>namespace</code>/<code>pod</code> labels survive).</td></tr>
+<tr><td><code>certmanager.enable</code></td><td><code>false</code></td><td>cert-manager certificates for the metrics endpoint, with CA-verified scraping. Do not combine with insecure metrics.</td></tr>
+<tr><td><code>networkPolicy.enable</code></td><td><code>false</code></td><td>A NetworkPolicy that admits metrics scrapes only from namespaces labelled <code>metrics: enabled</code>.</td></tr>
+<tr><td><code>crd.enable</code> / <code>crd.keep</code></td><td><code>true</code> / <code>true</code></td><td>Include the CRD, and keep it on uninstall.</td></tr>
 <tr><td><code>rbac.enable</code></td><td><code>true</code></td><td>Include RBAC objects.</td></tr>
 </table></div>
 <p>
-The manager runs non-root with a restricted security context, exposes health probes on
-:8081 (its own, not celld's) and metrics on :8443.
+The manager runs non-root with a restricted security context and exposes its own health
+probes on :8081 (not celld's). Keep the <code>control-plane: controller-manager</code> and
+<code>app.kubernetes.io/name: celld-operator</code> labels on manager pods: fleet
+NetworkPolicies select them.
 </p>
 
 <h2 id="degradation"><a class="anchor" href="#degradation">Graceful degradation</a></h2>
 <p>
 The operator requires none of its optional integrations to start reconciling. Absence is
-reported per-WorkerApp, not failed on:
+reported per WorkerApp, not failed on:
 </p>
 <div class="tbl-wrap"><table>
 <tr><th>Missing</th><th>Effect</th><th>Condition</th></tr>
-<tr><td>Gateway API CRDs / implementation</td><td>Hostnames are not routed; fleet still serves in-cluster</td><td><code>IngressReady: False</code></td></tr>
-<tr><td>Istio</td><td>NetworkPolicy alone guards :8081; no ambient mTLS</td><td><code>MeshPolicyReady: False</code></td></tr>
-<tr><td>KEDA / Prometheus</td><td><code>spec.autoscaling</code> has no effect; fleet runs at <code>spec.replicas</code></td><td><code>AutoscalingReady: False</code></td></tr>
+<tr><td>Gateway API CRDs (httproute mode)</td><td>Hostnames are not routed; the fleet still serves in-cluster</td><td><code>IngressReady: False</code></td></tr>
+<tr><td>Istio CRDs</td><td>NetworkPolicy alone guards :8081; no mesh mTLS</td><td><code>MeshPolicyReady: False</code></td></tr>
+<tr><td>KEDA (autoscaled apps only)</td><td><code>spec.autoscaling</code> has no effect</td><td><code>AutoscalingReady: False</code></td></tr>
+<tr><td>Prometheus</td><td>KEDA scalers error; no replica changes are made on missing data</td><td>none: alert on KEDA</td></tr>
 </table></div>
 
 <h2 id="store-qualification"><a class="anchor" href="#store-qualification">Store qualification tooling</a></h2>

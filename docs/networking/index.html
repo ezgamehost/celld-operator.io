@@ -4,29 +4,34 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Networking, ingress, and WebSockets · celld-operator</title>
-<meta name="description" content="Route WorkerApp hostnames via Gateway API, Istio, or Ingress; keep the internal listener private; serve WebSockets through hibernation-friendly edge policy.">
+<meta name="description" content="Route WorkerApp hostnames via Gateway API, Istio, or Ingress; keep the internal listener private; retries, readiness, forwarded headers, and WebSockets.">
 <link rel="canonical" href="https://celld-operator.io/docs/networking/">
+<meta name="theme-color" content="#07090e">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap">
 <link rel="stylesheet" href="/assets/style.css">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="celld-operator">
 <meta property="og:title" content="Networking, ingress, and WebSockets">
-<meta property="og:description" content="Route WorkerApp hostnames via Gateway API, Istio, or Ingress; keep the internal listener private; serve WebSockets through hibernation-friendly edge policy.">
+<meta property="og:description" content="Route WorkerApp hostnames via Gateway API, Istio, or Ingress; keep the internal listener private; retries, readiness, forwarded headers, and WebSockets.">
 <meta property="og:url" content="https://celld-operator.io/docs/networking/">
 <meta property="og:image" content="https://celld-operator.io/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Networking, ingress, and WebSockets">
-<meta name="twitter:description" content="Route WorkerApp hostnames via Gateway API, Istio, or Ingress; keep the internal listener private; serve WebSockets through hibernation-friendly edge policy.">
+<meta name="twitter:description" content="Route WorkerApp hostnames via Gateway API, Istio, or Ingress; keep the internal listener private; retries, readiness, forwarded headers, and WebSockets.">
 <meta name="twitter:image" content="https://celld-operator.io/assets/og.png">
 <script type="application/ld+json">
 {
  "@context": "https://schema.org",
  "@type": "TechArticle",
  "headline": "Networking, ingress, and WebSockets",
- "description": "Route WorkerApp hostnames via Gateway API, Istio, or Ingress; keep the internal listener private; serve WebSockets through hibernation-friendly edge policy.",
+ "description": "Route WorkerApp hostnames via Gateway API, Istio, or Ingress; keep the internal listener private; retries, readiness, forwarded headers, and WebSockets.",
  "url": "https://celld-operator.io/docs/networking/",
+ "dateModified": "2026-10-18",
  "isPartOf": {
   "@type": "WebSite",
   "name": "celld-operator",
@@ -60,7 +65,7 @@
   {
    "@type": "ListItem",
    "position": 3,
-   "name": "Networking &amp; ingress",
+   "name": "Networking & ingress",
    "item": "https://celld-operator.io/docs/networking/"
   }
  ]
@@ -73,18 +78,19 @@
 <header class="site-head">
   <div class="container">
     <a class="brand" href="/">
-      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+      <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#07090e"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
       celld-operator
     </a>
     <nav class="site-nav" aria-label="Main">
-      <a href="/docs/">Docs</a>
+      <a href="/docs/" aria-current="page">Docs</a>
+      <a href="/docs/workerapp/">Reference</a>
       <a href="/docs/compatibility/">Compatibility</a>
-      <a href="https://celld.dev" rel="external">celld.dev</a>
-      <a class="gh" href="https://github.com/ezgamehost/celld-operator" rel="external">
-        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-        GitHub
-      </a>
+      <a href="https://celld.dev" rel="external">celld</a>
     </nav>
+    <div class="head-actions">
+      <a class="gh" href="https://github.com/ezgamehost/celld-operator" rel="external"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg><span>GitHub</span></a>
+      <a class="btn btn-primary btn-sm" href="/docs/quick-start/">Get started</a>
+    </div>
   </div>
 </header>
 
@@ -123,29 +129,43 @@
 <script>if(matchMedia("(max-width: 56rem)").matches)document.currentScript.parentElement.querySelector("details").removeAttribute("open")</script>
 </nav>
 <main class="docs-main" id="main">
-<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a> &rsaquo; <a href="/docs/">Docs</a> &rsaquo; <span>Networking &amp; ingress</span></nav>
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/docs/">Docs</a><span class="sep">/</span><span>Guides</span><span class="sep">/</span><span>Networking &amp; ingress</span></nav>
 <h1>Networking &amp; ingress</h1>
 <p class="lead">
-Every fleet has two listeners with two very different audiences: the public Worker
-listener (:8080), which your users reach through ingress, and the internal listener
-(:8081), which nothing outside the fleet and the operator may ever reach. The operator
-wires both correctly.
+Every fleet has two listeners with very different audiences: the public Worker listener
+(:8080), which your users reach through ingress, and the internal listener (:8081), which
+nothing outside the fleet and the operator may ever reach. The operator wires both.
 </p>
 
 <h2 id="modes"><a class="anchor" href="#modes">Ingress modes</a></h2>
 <p>How <code>spec.hostnames</code> get routed is an operator-level choice
-(<code>--ingress-mode</code>, or <code>operator.ingressMode</code> in Helm):</p>
+(<code>--ingress-mode</code>, or <code>operator.ingressMode</code> in Helm). Each app gets
+one route object carrying every hostname.</p>
 <div class="tbl-wrap"><table>
-<tr><th>Mode</th><th>Mechanism</th><th>When to use it</th></tr>
-<tr><td><code>httproute</code> (default)</td><td>One Gateway API HTTPRoute per app, carrying every hostname in <code>spec.hostnames</code>, attached to a shared platform Gateway by <code>parentRefs</code> (<code>--gateway-name</code>/<code>--gateway-namespace</code>, default <code>edge</code>/<code>infra</code>). Cross-namespace attachment is authorized by that Gateway's <code>allowedRoutes</code>; TLS is the Gateway's own. <strong>The drain-503 retry needs experimental-channel CRDs</strong> — see below.</td><td>Clusters that already run Gateway API; Istio's implementation is the one this was built against.</td></tr>
-<tr><td><code>virtualservice</code></td><td>Classic Istio VirtualServices bound to pre-existing <code>networking.istio.io</code> Gateways (<code>--istio-gateways</code>, comma-separated <code>namespace/name</code>).</td><td>Clusters whose edge is an existing istio-ingressgateway.</td></tr>
-<tr><td><code>ingress</code></td><td>Plain <code>networking.k8s.io/v1</code> Ingress; <code>--ingress-class</code> selects the class, and <code>--cluster-issuer</code> makes each app's Ingress request its own cert-manager TLS certificate. Drain-retry and WebSocket policies are expressed as ingress-nginx annotations (ignored by other controllers).</td><td>ingress-nginx, Traefik, cloud ingress controllers.</td></tr>
-<tr><td><code>none</code></td><td>No routes are created; <code>hostnames</code> has no effect.</td><td>Internal-only platforms, or ingress managed entirely outside the operator.</td></tr>
+<tr><th>Mode</th><th>Mechanism</th><th>Drain-503 retry</th></tr>
+<tr><td><code>httproute</code> (default)</td><td>A Gateway API HTTPRoute attached to a shared Gateway (<code>--gateway-name</code>/<code>--gateway-namespace</code>, default <code>edge</code>/<code>infra</code>). Cross-namespace attachment is authorized by that Gateway's <code>allowedRoutes</code>; TLS is the Gateway's own.</td><td>Opt-in: <code>operator.httpRouteRetries: true</code> adds 2 attempts on 503. Needs experimental-channel CRDs.</td></tr>
+<tr><td><code>virtualservice</code></td><td>A classic Istio VirtualService bound to pre-existing <code>networking.istio.io</code> Gateways (<code>--istio-gateways</code>, comma-separated <code>namespace/name</code>).</td><td>Always: 2 attempts on <code>connect-failure,refused-stream,503</code>.</td></tr>
+<tr><td><code>ingress</code></td><td>A <code>networking.k8s.io/v1</code> Ingress; <code>--ingress-class</code> selects the class and <code>--cluster-issuer</code> requests per-app cert-manager TLS.</td><td>Always, as ingress-nginx annotations (<code>proxy-next-upstream: error timeout http_503</code>, 3 tries). Other controllers ignore them.</td></tr>
+<tr><td><code>none</code></td><td>No routes; <code>hostnames</code> has no effect.</td><td>n/a</td></tr>
 </table></div>
 <p>
-When Gateway API CRDs are missing in <code>httproute</code> mode, or a route errors, the
-WorkerApp reports <code>IngressReady: False</code> and hostnames are not routed;
-the fleet itself keeps running.
+Changing the mode, or removing every hostname, deletes the obsolete route objects the
+WorkerApp owns.
+</p>
+
+<h3 id="ready"><a class="anchor" href="#ready">What IngressReady means</a></h3>
+<div class="tbl-wrap"><table>
+<tr><th>Status</th><th>Reason</th><th>Meaning</th></tr>
+<tr><td><code>True</code></td><td><code>RouteObserved</code></td><td>HTTPRoute: fresh <code>Accepted</code> and <code>ResolvedRefs</code> conditions from the Gateway, and the Gateway reports <code>Programmed</code>.</td></tr>
+<tr><td><code>Unknown</code></td><td><code>IngressReconciled</code> / <code>VirtualServiceReconciled</code></td><td>The object exists; creation alone does not prove traffic flows, so check the controller.</td></tr>
+<tr><td><code>False</code></td><td><code>GatewayAPIUnavailable</code> / <code>IstioUnavailable</code></td><td>The CRDs for the selected mode are not installed; hostnames are not routed.</td></tr>
+<tr><td><code>False</code></td><td><code>RouteReconciledRetryDropped</code></td><td>Retries were requested but standard-channel CRDs pruned the field. The operator stops rewriting it and re-checks after a persisted five-minute delay, so upgrading the CRDs needs no manual reset.</td></tr>
+<tr><td><code>False</code></td><td><code>RouteError</code></td><td>Any other create or update error; the message carries it.</td></tr>
+</table></div>
+<p>
+With <code>watchNamespace</code> set and the Gateway in another namespace, the manager
+needs <code>get</code> on that Gateway (a Role and RoleBinding there); otherwise the
+condition stays <code>Unknown</code>.
 </p>
 
 <h2 id="internal"><a class="anchor" href="#internal">Internal consumers: no ingress at all</a></h2>
@@ -156,85 +176,116 @@ directly at <code>&lt;app&gt;-celld.&lt;namespace&gt;.svc:8080</code>. The
 </p>
 <pre class="code"><code><span class="k">service:</span>
   <span class="k">type:</span> <span class="s">LoadBalancer</span>       <span class="c"># ClusterIP (default) | LoadBalancer | NodePort</span>
-  <span class="k">annotations:</span>             <span class="c"># cloud LB configuration, e.g. an internal/private LB</span>
+  <span class="k">annotations:</span>             <span class="c"># cloud LB configuration, e.g. an internal LB</span>
     <span class="k">service.beta.kubernetes.io/aws-load-balancer-internal:</span> <span class="s">"true"</span></code></pre>
+<p>
+Assigned node ports survive reconciliation, and annotations the operator added are
+removed again when you delete them from the spec.
+</p>
 
 <h2 id="drains"><a class="anchor" href="#drains">Drain-aware edge policy</a></h2>
 <p>
 A draining celld node answers new requests with 503 and a closed connection, expecting
-the client to retry against a healthy node. At the platform edge, <em>the gateway is that
-client</em>: the operator configures <strong>explicit retry-on-503</strong> on every route
-it emits (Istio's default <code>retryOn</code> does not cover 503 responses), which makes
-drains, and therefore rollouts, invisible to end users.
-</p>
-<p>
-One caveat in <code>httproute</code> mode: <code>HTTPRouteRule.retry</code> exists only in
-the Gateway API <strong>experimental</strong> channel. Standard-channel CRDs accept the
-route and silently drop the field, so the operator checks the stored object and reports
-<code>IngressReady: True</code> with reason <code>RouteReconciledRetryDropped</code> and
-the message <em>drain 503s are not retried at the gateway</em>. If you see that reason,
-either install the experimental channel or expect clients to see 503s during rollouts.
+the client to retry against a healthy node. At the platform edge, <em>the gateway can be
+that client</em>: with a retry on 503, drains, and therefore rollouts, are invisible to
+end users. In <code>httproute</code> mode retries are off by default because
+<code>HTTPRouteRule.retry</code> exists only in the Gateway API experimental channel.
+Without them, clients must tolerate rollout 503s. WebSocket connections can still close
+during node replacement in every mode.
 </p>
 <p>Related wiring the operator takes care of:</p>
 <ul>
-<li>Readiness is celld's own <code>/__celld/health</code>; a draining pod flips to 503 and
-leaves the EndpointSlice.</li>
+<li>Readiness is celld's own <code>/.well-known/celld/health</code>; a draining pod flips
+to 503 and leaves the EndpointSlice.</li>
 <li>The headless internal Service sets <code>publishNotReadyAddresses</code>, so peers can
-still reach a draining pod to receive its cells.</li>
-<li>Liveness is TCP only, because an HTTP liveness probe on the health path would kill nodes
-mid-handoff.</li>
+still reach a draining pod to take its cells.</li>
+<li>Liveness is TCP only, because an HTTP liveness probe on the health path would kill
+nodes mid-handoff.</li>
 </ul>
 
 <h2 id="websockets"><a class="anchor" href="#websockets">The WebSocket profile</a></h2>
 <p><code>spec.websockets: true</code> switches the app's routes and scaling to a
 socket-friendly profile:</p>
 <ul>
-<li><strong>Generous timeouts</strong> so quiet, hibernated sockets are not severed by the
-proxy — but only in the modes that can express them: <code>httproute</code> disables the
-route's request timeout, and <code>ingress</code> sets
+<li><strong>Long timeouts</strong> where the mode can express them:
+<code>httproute</code> disables the route's request timeout, and <code>ingress</code> sets
 <code>proxy-read-timeout</code>/<code>proxy-send-timeout</code> to 3600s. In
-<code>virtualservice</code> mode the operator emits no timeout override, so Istio's
-default route timeout still applies — set it on your own <code>VirtualService</code> or
-mesh defaults if you serve long-lived sockets that way.</li>
+<code>virtualservice</code> mode the operator emits no timeout override, so set one in
+your own mesh defaults if you serve long-lived sockets that way.</li>
 <li><strong>Conservative scale-down</strong>: a removed pod closes its sockets, so the
 stabilization window stretches to 30 minutes (from 10). See
 <a href="/docs/autoscaling/#policy">autoscaling policy</a>.</li>
 </ul>
 <p>
-Note there is no session affinity: the operator emits no <code>DestinationRule</code> and
-sets no sticky-session annotation. It does not need one — celld's signed peer tunnel
-serves any cell from any node — but if you want requests to land on a cell's owner for
-latency reasons, that is your own edge configuration to add.
+There is no session affinity. celld's peer tunnel serves any cell from any node, so the
+operator configures none; add it at your edge if you want requests to land on a cell's
+owner for latency. A WebSocket cannot follow a cell to a new owner, so clients must
+reconnect after a handoff.
 </p>
 <div class="note">
 <p><strong>Keeping proxies happy without waking cells:</strong> have clients ping
-periodically and answer with <code>setWebSocketAutoResponse</code>: celld replies to a
-matched message without waking the hibernated cell, and the proxy's idle clock resets.</p>
+periodically and answer with <code>setWebSocketAutoResponse</code>. celld replies to a
+matched message without waking the hibernated cell, and the proxy's idle clock
+resets.</p>
 </div>
+
+<h2 id="forwarded"><a class="anchor" href="#forwarded">Forwarded headers and request.url</a></h2>
+<p>
+celld ignores <code>X-Forwarded-Host</code> and <code>X-Forwarded-Proto</code> by
+default, so behind a TLS-terminating edge a Worker sees the pod's address and scheme in
+<code>request.url</code>. <code>spec.trustForwardedHeaders: true</code> sets
+<code>CELLD_TRUST_FORWARDED_HEADERS=1</code>. celld takes the <em>last</em> value of each
+header, so enable it only when every hop in front of the fleet replaces both headers.
+ingress-nginx does; Envoy-based gateways set <code>X-Forwarded-Proto</code> but not always
+<code>X-Forwarded-Host</code>.
+</p>
+
+<h2 id="dns"><a class="anchor" href="#dns">Cluster DNS and IP families</a></h2>
+<p>
+Peers advertise <code>$(POD_NAME).&lt;app&gt;-celld-internal.&lt;ns&gt;.svc.&lt;clusterDomain&gt;:8081</code>.
+Set <code>spec.clusterDomain</code> when your cluster's DNS suffix is not
+<code>cluster.local</code>, and set the operator's Istio principal separately when the
+trust domain differs. celld's listeners bind IPv4, so IPv6-only pod networking is not
+supported.
+</p>
 
 <h2 id="tls"><a class="anchor" href="#tls">Where TLS lives</a></h2>
 <p>
 celld terminates no TLS anywhere. Public TLS belongs to the Gateway (or Ingress +
-cert-manager). The pod network should be encrypted (Istio ambient mode, or a CNI with
-WireGuard) because celld's peer protocol relies on network confidentiality for its
-payloads (its HMAC auth protects integrity, not secrecy).
-</p>
-<p>
-The internal listener's protections are covered in <a href="/docs/security/#internal">Security</a>.
+cert-manager). Peer traffic is plaintext HTTP: the fleet HMAC authenticates tunnel
+establishment and control requests but encrypts nothing, so encrypt the pod network
+(Istio ambient mode, or a CNI with WireGuard). The internal listener's protections are
+covered in <a href="/docs/security/#internal">Security</a>.
 </p>
 
+<div class="page-foot"><a href="https://github.com/ezgamehost/celld-operator.io/blob/main/build/content/networking.html" rel="external"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit this page on GitHub</a><span>Updated 2026-10-18</span></div>
 <nav class="pager" aria-label="Docs pages"><a class="prev" href="/docs/autoscaling/" rel="prev"><span class="dir">&larr; Previous</span>Autoscaling</a><a class="next" href="/docs/security/" rel="next"><span class="dir">Next &rarr;</span>Security</a></nav>
 </main>
+<aside class="toc" aria-label="On this page">
+<div class="toc-inner">
+<h4>On this page</h4>
+<ul>
+<li><a href="#modes">Ingress modes</a></li>
+<li><a href="#internal">Internal consumers: no ingress at all</a></li>
+<li><a href="#drains">Drain-aware edge policy</a></li>
+<li><a href="#websockets">The WebSocket profile</a></li>
+<li><a href="#forwarded">Forwarded headers and request.url</a></li>
+<li><a href="#dns">Cluster DNS and IP families</a></li>
+<li><a href="#tls">Where TLS lives</a></li>
+</ul>
+<div class="toc-meta"><a href="https://github.com/ezgamehost/celld-operator.io/blob/main/build/content/networking.html" rel="external"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit this page</a></div>
+</div>
+</aside>
 </div>
 
 <footer class="site-foot">
   <div class="container">
     <div class="cols">
       <div>
-        <a class="brand" href="/"><svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+        <a class="brand" href="/"><svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#07090e"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
           celld-operator
         </a>
-        <p style="margin:.6rem 0 0; font-size:.88rem">
+        <p class="blurb">
           A Kubernetes control plane for celld: self-hosted Cloudflare Workers and
           Durable Objects on infrastructure you own.
         </p>
@@ -252,9 +303,9 @@ The internal listener's protections are covered in <a href="/docs/security/#inte
         <h4>Project</h4>
         <ul>
           <li><a href="https://github.com/ezgamehost/celld-operator" rel="external">GitHub</a></li>
-          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/celld-behaviors.md" rel="external">celld behaviors reference</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/production.md" rel="external">Production guide</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/celld-behaviors.md" rel="external">celld behaviors index</a></li>
           <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/SECURITY.md" rel="external">Security policy</a></li>
-          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/CONTRIBUTING.md" rel="external">Contributing</a></li>
         </ul>
       </div>
       <div>
@@ -262,7 +313,7 @@ The internal listener's protections are covered in <a href="/docs/security/#inte
         <ul>
           <li><a href="https://celld.dev" rel="external">celld.dev</a></li>
           <li><a href="https://github.com/denoland/celld" rel="external">denoland/celld</a></li>
-          <li><a href="https://celld.dev/docs" rel="external">celld documentation</a></li>
+          <li><a href="https://github.com/denoland/celld/blob/v0.6.2/docs/README.md" rel="external">celld v0.6.2 docs</a></li>
         </ul>
       </div>
     </div>

@@ -5,9 +5,11 @@ Kubernetes operator that runs [celld](https://github.com/denoland/celld) fleets,
 can host Cloudflare Workers and Durable Objects on your own cluster. Landing page plus
 13 documentation pages, live at **[celld-operator.io](https://celld-operator.io)**.
 
-Plain HTML, one stylesheet, no JavaScript, no framework. The only build step assembles
-documentation pages from content fragments so every page shares one chrome; you can
-serve the repository root directly from any static host.
+Plain HTML, one stylesheet, no framework, and no JavaScript beyond one inline line that
+collapses the docs menu on phones. Type is Geist and Geist Mono from Google Fonts, with
+system fallbacks. The only build step assembles documentation pages from content
+fragments so every page shares one chrome; you can serve the repository root directly
+from any static host. Light and dark themes follow `prefers-color-scheme`.
 
 ## Quick start
 
@@ -30,7 +32,7 @@ python3 build/build.py
 
 | Path | What it is | Edit? |
 | --- | --- | --- |
-| `index.html` | Landing page | **Yes** — hand-maintained |
+| `index.html` | Landing page | **Yes** — hand-maintained; its header, footer, and `<head>` links copy `header()`, `FOOTER`, and `HEAD_COMMON` from `build.py` |
 | `build/content/*.html` | Body fragments for the 13 docs pages | **Yes** — this is where docs live |
 | `build/build.py` | Assembles fragments into pages; owns chrome, nav, and metadata | **Yes** — for structure and templates |
 | `assets/style.css` | The single shared stylesheet | **Yes** |
@@ -41,8 +43,9 @@ python3 build/build.py
 
 A fragment is just the page body: headings, prose, tables, and
 `<pre class="code">` blocks. Everything around it — `<head>` and metadata, header,
-sidebar navigation, breadcrumbs, prev/next pager, footer, JSON-LD — comes from
-`build.py`, so pages stay consistent and a chrome change lands everywhere at once.
+sidebar navigation, breadcrumbs, the "On this page" rail (built from the fragment's
+`<h2 id>` anchors), the edit-on-GitHub link, prev/next pager, footer, JSON-LD — comes
+from `build.py`, so pages stay consistent and a chrome change lands everywhere at once.
 
 ## Adding a page
 
@@ -83,7 +86,9 @@ alpha operator for an alpha runtime:
 - **Keep examples runnable.** YAML examples use the real API group
   (`celld-operator.io/v1alpha1`) and real field names; commands should work if pasted.
 - **Version-sensitive facts drift.** Defaults, flags, and the Cloudflare compatibility
-  matrix change upstream — re-check them when celld or the operator releases.
+  matrix change upstream — re-check them when celld or the operator releases. The site
+  currently describes celld v0.6.2 (compatibility from celld's own
+  `docs/cloudflare-compat.md` at that tag) and the operator as of `08ede4d`.
 
 ## License and trademarks
 

@@ -4,20 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Self-Hosted Cloudflare Workers on Kubernetes · celld-operator</title>
-<meta name="description" content="celld-operator is an open-source Kubernetes operator for celld: run Cloudflare Workers and Durable Objects on your own cluster. One CRD provisions ingress, gated rollouts, and autoscaling.">
+<meta name="description" content="celld-operator is an open-source Kubernetes operator for celld: run Cloudflare Workers and Durable Objects on your own cluster. One CRD provisions the fleet, ingress, gated rollouts, and autoscaling.">
 <link rel="canonical" href="https://celld-operator.io/">
+<meta name="theme-color" content="#07090e">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap">
 <link rel="stylesheet" href="/assets/style.css">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="celld-operator">
-<meta property="og:title" content="Self-hosted Durable Objects, operated by Kubernetes">
+<meta property="og:title" content="Durable Objects on your own Kubernetes">
 <meta property="og:description" content="Run Cloudflare Workers and Durable Objects on your own Kubernetes cluster. One WorkerApp resource provisions a complete celld fleet: ingress, gated rollouts, autoscaling, telemetry.">
 <meta property="og:url" content="https://celld-operator.io/">
 <meta property="og:image" content="https://celld-operator.io/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Self-hosted Durable Objects, operated by Kubernetes">
+<meta name="twitter:title" content="Durable Objects on your own Kubernetes">
 <meta name="twitter:description" content="Run Cloudflare Workers and Durable Objects on your own Kubernetes cluster with one custom resource.">
 <meta name="twitter:image" content="https://celld-operator.io/assets/og.png">
 <script type="application/ld+json">
@@ -42,308 +46,361 @@
 <header class="site-head">
   <div class="container">
     <a class="brand" href="/">
-      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+      <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#07090e"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
       celld-operator
     </a>
     <nav class="site-nav" aria-label="Main">
       <a href="/docs/">Docs</a>
+      <a href="/docs/workerapp/">Reference</a>
       <a href="/docs/compatibility/">Compatibility</a>
-      <a href="https://celld.dev" rel="external">celld.dev</a>
-      <a class="gh" href="https://github.com/ezgamehost/celld-operator" rel="external">
-        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-        GitHub
-      </a>
+      <a href="https://celld.dev" rel="external">celld</a>
     </nav>
+    <div class="head-actions">
+      <a class="gh" href="https://github.com/ezgamehost/celld-operator" rel="external"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg><span>GitHub</span></a>
+      <a class="btn btn-primary btn-sm" href="/docs/quick-start/">Get started</a>
+    </div>
   </div>
 </header>
 
 <main id="main">
 
 <section class="hero">
-  <div class="container">
-    <span class="eyebrow">Kubernetes operator for celld · alpha</span>
-    <h1>Self-hosted Durable Objects, <em>operated by Kubernetes</em>.</h1>
-    <p class="lede">
-      celld-operator runs Cloudflare Workers and Durable Objects on your own cluster with
-      <a href="https://celld.dev" rel="external">celld</a>, and supplies everything celld
-      deliberately leaves out: fleet provisioning, ingress, gated rollouts, autoscaling,
-      and tenancy. One custom resource, one complete platform.
-    </p>
-    <div class="cta-row">
-      <a class="btn btn-primary" href="/docs/quick-start/">Get started</a>
-      <a class="btn btn-ghost" href="/docs/">Read the docs</a>
-    </div>
-    <div class="term" role="img" aria-label="Terminal showing the Helm install command">
-      <div class="term-bar"><i></i><i></i><i></i>&nbsp;install with Helm</div>
-      <pre><span class="p">$</span> helm install celld-operator \
-    oci://ghcr.io/ezgamehost/charts/celld-operator \
-    --namespace celld-operator-system --create-namespace</pre>
-    </div>
-    <div class="badge-row">
-      <span class="badge">Apache-2.0</span>
-      <span class="badge">Kubernetes 1.30+</span>
-      <span class="badge">Gateway API · Istio · Ingress</span>
-      <span class="badge">KEDA autoscaling</span>
-      <span class="badge">Go · Kubebuilder</span>
-    </div>
-  </div>
-</section>
-
-<section class="section">
-  <div class="container">
-    <div class="section-head">
-      <span class="kicker">Why celld-operator</span>
-      <h2>Stateless self-hosted Workers already exist. This is the stateful part.</h2>
-      <p>
-        workerd gives you self-hosted stateless Workers. What nobody else offers is
-        distributed, durable, self-hosted <strong>Durable Objects</strong>: your agents, rooms,
-        documents, and tenants as named stateful cells on infrastructure you control, with RPO=0 durability against an object-storage bucket you own.
+  <div class="container hero-grid">
+    <div>
+      <a class="pill" href="/docs/deploying/#celld-upgrades"><span class="dot">celld v0.6.2</span><span class="txt">Alpha · tracks upstream release-for-release</span><span class="sep">→</span></a>
+      <h1>Durable Objects on <span class="grad">your own Kubernetes</span>.</h1>
+      <p class="lede">
+        celld-operator runs Cloudflare Workers and Durable Objects on your cluster with
+        <a href="https://celld.dev" rel="external">celld</a>, and supplies everything celld
+        deliberately leaves out: fleet provisioning, ingress, gated rollouts, autoscaling,
+        and guardrails. One custom resource, one operated fleet.
       </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="/docs/quick-start/">Get started <span class="arrow">→</span></a>
+        <a class="btn btn-secondary" href="/docs/">Read the docs</a>
+      </div>
+      <div class="install" aria-label="Helm install command"><pre><span class="p">$</span> helm install celld-operator \
+    oci://ghcr.io/ezgamehost/charts/celld-operator</pre></div>
     </div>
-    <div class="grid cols-3">
-      <div class="card">
-        <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 21 7 21 17 12 22 3 17 3 7"/><circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/></svg></div>
-        <h3>Every object is its own database</h3>
-        <p>Each Durable Object ("cell") is a private SQLite database, replicated to your bucket before any write is acknowledged. Node loss cannot lose an acknowledged write.</p>
-      </div>
-      <div class="card">
-        <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
-        <h3>One CRD, an entire fleet</h3>
-        <p>A single <code>WorkerApp</code> resource reconciles the StatefulSet, Services, ingress, NetworkPolicies, PodDisruptionBudget, mesh policy, metrics, and autoscaler for one application.</p>
-      </div>
-      <div class="card">
-        <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
-        <h3>Operational rules, encoded</h3>
-        <p>celld's drain semantics, rollout gating, and memory bounds are enforced by the reconciler. There are no templates to misconfigure. The controller cannot be talked into unsafe states.</p>
-      </div>
-    </div>
-  </div>
-</section>
 
-<section class="section alt">
-  <div class="container">
-    <div class="split">
-      <div>
-        <span class="kicker">How it works</span>
-        <h2>Nodes coordinate through a bucket. The operator does the rest.</h2>
-        <p>
-          celld nodes share one object-storage bucket (deployments, per-cell SQLite state,
-          and ownership leases) with no consensus service. Object-storage compare-and-swap
-          guarantees exactly one node owns a cell at a time.
-        </p>
-        <p>
-          The operator turns one <code>WorkerApp</code> into one fleet of celld pods sharing a
-          bucket prefix: routed through your Gateway, guarded by network policy, scaled by
-          KEDA on cell-utilization metrics, and rolled out with celld's documented
-          fleet-wide <code>restoring=0</code> gate.
-        </p>
-        <p>
-          Each application is its own fleet with its own bucket prefix and credentials, so
-          the blast radius of even a full runtime compromise is that one app.
-          <a href="/docs/architecture/">Read the architecture →</a>
-        </p>
-      </div>
-      <div class="diagram">
-        <svg viewBox="0 0 760 400" role="img" aria-label="Architecture diagram: a shared Gateway routes to an HTTPRoute and Service in the tenant namespace, which fronts three celld pods that peer with each other and replicate to an object-storage bucket; the celld-operator reconciles the namespace and polls fleet state.">
-          <defs>
-            <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M0 0 L10 5 L0 10 z" style="fill: var(--faint)"/>
-            </marker>
-            <marker id="arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M0 0 L10 5 L0 10 z" style="fill: var(--accent)"/>
-            </marker>
-          </defs>
-          <!-- namespace -->
-          <rect x="180" y="30" width="340" height="310" rx="10" style="fill: var(--bg-soft); stroke: var(--border)" stroke-dasharray="5 4"/>
-          <text x="196" y="54" style="fill: var(--faint)" font-size="12" font-family="ui-monospace, monospace">namespace: tenant-acme</text>
-          <!-- gateway -->
-          <rect x="16" y="146" width="128" height="58" rx="8" style="fill: var(--bg); stroke: var(--border)"/>
-          <text x="80" y="171" text-anchor="middle" style="fill: var(--fg)" font-size="14" font-weight="600">Gateway</text>
-          <text x="80" y="189" text-anchor="middle" style="fill: var(--faint)" font-size="11">TLS · shared edge</text>
-          <!-- httproute -->
-          <rect x="204" y="70" width="122" height="46" rx="8" style="fill: var(--bg); stroke: var(--border)"/>
-          <text x="265" y="98" text-anchor="middle" style="fill: var(--fg)" font-size="13">HTTPRoute</text>
-          <!-- service -->
-          <rect x="204" y="152" width="122" height="46" rx="8" style="fill: var(--bg); stroke: var(--border)"/>
-          <text x="265" y="172" text-anchor="middle" style="fill: var(--fg)" font-size="13">Service</text>
-          <text x="265" y="188" text-anchor="middle" style="fill: var(--faint)" font-size="11">:8080</text>
-          <!-- pods -->
-          <rect x="386" y="70" width="110" height="46" rx="8" style="fill: var(--bg); stroke: var(--accent)"/>
-          <text x="441" y="98" text-anchor="middle" style="fill: var(--fg)" font-size="13" font-family="ui-monospace, monospace">celld-0</text>
-          <rect x="386" y="152" width="110" height="46" rx="8" style="fill: var(--bg); stroke: var(--accent)"/>
-          <text x="441" y="180" text-anchor="middle" style="fill: var(--fg)" font-size="13" font-family="ui-monospace, monospace">celld-1</text>
-          <rect x="386" y="234" width="110" height="46" rx="8" style="fill: var(--bg); stroke: var(--accent)"/>
-          <text x="441" y="262" text-anchor="middle" style="fill: var(--fg)" font-size="13" font-family="ui-monospace, monospace">celld-2</text>
-          <!-- peer links -->
-          <line x1="441" y1="116" x2="441" y2="152" style="stroke: var(--faint)" stroke-dasharray="3 3"/>
-          <line x1="441" y1="198" x2="441" y2="234" style="stroke: var(--faint)" stroke-dasharray="3 3"/>
-          <text x="452" y="139" style="fill: var(--faint)" font-size="10" font-family="ui-monospace, monospace">peer :8081</text>
-          <!-- bucket -->
-          <path d="M580 140 h140 a0 0 0 0 1 0 0 v140 a70 14 0 0 1 -140 0 v-140" style="fill: var(--bg); stroke: var(--border)" transform="translate(0,4)"/>
-          <ellipse cx="650" cy="144" rx="70" ry="14" style="fill: var(--bg-soft); stroke: var(--border)"/>
-          <text x="650" y="205" text-anchor="middle" style="fill: var(--fg)" font-size="13" font-weight="600">object store</text>
-          <text x="650" y="226" text-anchor="middle" style="fill: var(--faint)" font-size="10.5" font-family="ui-monospace, monospace">s3://cells/apps/chat</text>
-          <text x="650" y="244" text-anchor="middle" style="fill: var(--faint)" font-size="10.5">state · deploys · leases</text>
-          <!-- operator -->
-          <rect x="16" y="288" width="144" height="52" rx="8" style="fill: var(--bg); stroke: var(--accent)"/>
-          <text x="88" y="310" text-anchor="middle" style="fill: var(--accent)" font-size="13" font-weight="600">celld-operator</text>
-          <text x="88" y="327" text-anchor="middle" style="fill: var(--faint)" font-size="10.5">control plane</text>
-          <!-- arrows -->
-          <line x1="144" y1="160" x2="200" y2="102" style="stroke: var(--faint)" marker-end="url(#arr)"/>
-          <line x1="265" y1="116" x2="265" y2="148" style="stroke: var(--faint)" marker-end="url(#arr)"/>
-          <line x1="326" y1="166" x2="382" y2="99" style="stroke: var(--faint)" marker-end="url(#arr)"/>
-          <line x1="326" y1="175" x2="382" y2="175" style="stroke: var(--faint)" marker-end="url(#arr)"/>
-          <line x1="326" y1="184" x2="382" y2="251" style="stroke: var(--faint)" marker-end="url(#arr)"/>
-          <line x1="496" y1="93" x2="600" y2="150" style="stroke: var(--faint)" marker-end="url(#arr)"/>
-          <line x1="496" y1="175" x2="578" y2="188" style="stroke: var(--faint)" marker-end="url(#arr)"/>
-          <line x1="496" y1="257" x2="596" y2="235" style="stroke: var(--faint)" marker-end="url(#arr)"/>
-          <path d="M160 306 C 250 306 300 300 336 288" fill="none" style="stroke: var(--accent)" marker-end="url(#arrA)"/>
-          <text x="180" y="326" style="fill: var(--accent)" font-size="11">reconciles · gates rollouts · polls /state</text>
-        </svg>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="section">
-  <div class="container">
-    <div class="split">
-      <div>
-        <span class="kicker">The WorkerApp resource</span>
-        <h2>One resource. A whole platform.</h2>
-        <p>
-          Declare hostnames, the app version, the bucket, sizing, and scaling targets.
-          The operator reconciles the workload, networking, security policy, ingress,
-          rollout gating, metrics, and autoscaling, then reports fleet health back
-          in <code>status</code>.
-        </p>
-        <div class="term">
-          <div class="term-bar"><i></i><i></i><i></i>&nbsp;watch it converge</div>
-          <pre><span class="p">$</span> kubectl get workerapps -n tenant-acme
-NAME   PHASE   APP          READY   RESTORING
-chat   Ready   sha-abc123   3       0</pre>
-        </div>
-        <p><a href="/docs/workerapp/">Full WorkerApp reference →</a></p>
-      </div>
-      <div>
-<pre class="code"><code><span class="k">apiVersion:</span> <span class="s">celld-operator.io/v1alpha1</span>
+    <div class="window" role="img" aria-label="A WorkerApp manifest and kubectl output showing the fleet Ready">
+      <div class="window-bar"><span class="dots"><i></i><i></i><i></i></span><span class="file">workerapp.yaml</span><span class="meta">celld-operator.io/v1alpha1</span></div>
+<pre><span class="k">apiVersion:</span> <span class="s">celld-operator.io/v1alpha1</span>
 <span class="k">kind:</span> <span class="s">WorkerApp</span>
 <span class="k">metadata:</span>
   <span class="k">name:</span> <span class="s">chat</span>
   <span class="k">namespace:</span> <span class="s">tenant-acme</span>
 <span class="k">spec:</span>
   <span class="k">hostnames:</span> <span class="s">["chat.acme.example.com"]</span>
-  <span class="k">appVersion:</span> <span class="s">sha-abc123</span>   <span class="c"># or "auto": follow the bucket</span>
+  <span class="k">appVersion:</span> <span class="s">a3f9c1d2e4b57081</span>   <span class="c"># or "auto"</span>
   <span class="k">celld:</span>
-    <span class="k">image:</span> <span class="s">ghcr.io/denoland/celld:v0.2.0</span>
+    <span class="k">image:</span> <span class="s">ghcr.io/denoland/celld:v0.6.2</span>
   <span class="k">replicas:</span> <span class="n">3</span>
   <span class="k">bucket:</span>
     <span class="k">name:</span> <span class="s">s3://platform-cells/apps/chat</span>
     <span class="k">credentialsFrom:</span>
       <span class="k">iamRole:</span> <span class="s">arn:aws:iam::123456789012:role/celld-chat</span>
   <span class="k">resources:</span>
-    <span class="k">memoryGi:</span> <span class="n">8</span>              <span class="c"># ~1,000 resident cells</span>
-    <span class="k">maxResidentCells:</span> <span class="n">1000</span>
-  <span class="k">websockets:</span> <span class="n">true</span>
+    <span class="k">memoryGi:</span> <span class="n">8</span>            <span class="c"># ~1,000 resident cells</span>
   <span class="k">autoscaling:</span>
     <span class="k">enabled:</span> <span class="n">true</span>
-    <span class="k">minReplicas:</span> <span class="n">3</span>
-    <span class="k">maxReplicas:</span> <span class="n">10</span>
-    <span class="k">targets:</span>
-      <span class="k">residentCellUtilization:</span> <span class="n">70</span>
-  <span class="k">telemetry:</span>
-    <span class="k">enabled:</span> <span class="n">true</span>
-    <span class="k">retention:</span> <span class="s">30d</span></code></pre>
+    <span class="k">maxReplicas:</span> <span class="n">10</span></pre>
+      <div class="term">
+<pre><span class="p">$</span> kubectl get workerapps -n tenant-acme
+NAME   PHASE   APP                READY   RESTORING
+chat   <span class="ok-t">Ready</span>   a3f9c1d2e4b57081   3       0</pre>
       </div>
     </div>
   </div>
 </section>
 
-<section class="section alt">
+<div class="stack-strip">
+  <div class="container">
+    <span class="label">Works with</span>
+    <ul>
+      <li>Gateway API</li><li>Istio</li><li>ingress-nginx</li><li>KEDA</li><li>Prometheus</li><li>cert-manager</li><li>Amazon S3</li><li>Cloudflare R2</li><li>Google Cloud Storage</li><li>Azure Blob Storage</li>
+    </ul>
+  </div>
+</div>
+
+<section class="section">
   <div class="container">
     <div class="section-head">
-      <span class="kicker">Features</span>
+      <span class="eyebrow">Why celld-operator</span>
+      <h2>Stateless self-hosted Workers already exist. This is the stateful part.</h2>
+      <p>
+        workerd gives you self-hosted stateless Workers. celld adds distributed, durable
+        <strong>Durable Objects</strong>: your agents, rooms, documents, and tenants as
+        named stateful cells, backed by an object-storage bucket you own. The operator
+        makes a fleet of them a single Kubernetes resource.
+      </p>
+    </div>
+    <div class="stats">
+      <div><div class="v">1 → 9</div><div class="l">one WorkerApp reconciles up to nine Kubernetes objects</div></div>
+      <div><div class="v">RPO 0</div><div class="l">no write is acknowledged before it survives a failure</div></div>
+      <div><div class="v">3</div><div class="l">store dialects: <code>s3://</code>, <code>gs://</code>, <code>az://</code></div></div>
+      <div><div class="v">4</div><div class="l">ingress modes: Gateway API, Istio, Ingress, or none</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section soft">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">How it works</span>
+      <h2>Nodes coordinate through a bucket. The operator does the rest.</h2>
+      <p>
+        celld nodes share one object-storage bucket (deployments, per-cell SQLite data,
+        ownership records, leases) with no consensus service; a conditional write decides
+        which node owns a cell. The operator turns one <code>WorkerApp</code> into one fleet
+        on a bucket prefix: routed through your edge, fenced by network policy, scaled on
+        cell utilization, and rolled out one pod at a time behind a fleet-wide
+        <code>restoring=0</code> gate. <a href="/docs/architecture/">Read the architecture →</a>
+      </p>
+    </div>
+    <div class="diagram">
+      <svg viewBox="0 0 900 440" role="img" aria-label="Architecture: a shared Gateway routes to an HTTPRoute and Service in the tenant namespace, which fronts three celld pods that peer over port 8081 and persist to an object-storage bucket. The celld-operator reconciles the namespace and polls fleet state.">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0 0 L10 5 L0 10 z"/></marker>
+          <marker id="aha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah-a" d="M0 0 L10 5 L0 10 z"/></marker>
+        </defs>
+        <rect class="box-soft" x="200" y="24" width="420" height="340" rx="12" stroke-dasharray="5 5"/>
+        <text class="t-fm" x="218" y="50" font-size="12">namespace: tenant-acme</text>
+
+        <rect class="box" x="20" y="150" width="140" height="64" rx="10"/>
+        <text class="t" x="90" y="178" text-anchor="middle" font-size="15" font-weight="600">Gateway</text>
+        <text class="t-f" x="90" y="198" text-anchor="middle" font-size="11.5">TLS · shared edge</text>
+
+        <rect class="box" x="224" y="72" width="140" height="48" rx="9"/>
+        <text class="t" x="294" y="101" text-anchor="middle" font-size="13.5">HTTPRoute</text>
+        <rect class="box" x="224" y="158" width="140" height="52" rx="9"/>
+        <text class="t" x="294" y="181" text-anchor="middle" font-size="13.5">Service</text>
+        <text class="t-fm" x="294" y="199" text-anchor="middle" font-size="11">:8080</text>
+        <rect class="box" x="224" y="300" width="140" height="42" rx="9"/>
+        <text class="t-f" x="294" y="326" text-anchor="middle" font-size="11.5">NetworkPolicy · PDB</text>
+
+        <rect class="box-accent" x="440" y="72" width="156" height="48" rx="9"/>
+        <text class="t-m" x="518" y="101" text-anchor="middle" font-size="13">chat-celld-0</text>
+        <rect class="box-accent" x="440" y="158" width="156" height="48" rx="9"/>
+        <text class="t-m" x="518" y="187" text-anchor="middle" font-size="13">chat-celld-1</text>
+        <rect class="box-accent" x="440" y="244" width="156" height="48" rx="9"/>
+        <text class="t-m" x="518" y="273" text-anchor="middle" font-size="13">chat-celld-2</text>
+        <line class="ln" x1="518" y1="120" x2="518" y2="158" stroke-dasharray="3 4"/>
+        <line class="ln" x1="518" y1="206" x2="518" y2="244" stroke-dasharray="3 4"/>
+        <text class="t-fm" x="528" y="143" font-size="10.5">peer :8081</text>
+        <text class="t-fm" x="528" y="229" font-size="10.5">peer :8081</text>
+
+        <path class="box" d="M690 154 v136 a85 16 0 0 0 170 0 v-136"/>
+        <ellipse class="box-soft" cx="775" cy="154" rx="85" ry="16"/>
+        <text class="t" x="775" y="214" text-anchor="middle" font-size="14" font-weight="600">object store</text>
+        <text class="t-fm" x="775" y="236" text-anchor="middle" font-size="10.5">s3://cells/apps/chat</text>
+        <text class="t-f" x="775" y="256" text-anchor="middle" font-size="11">cells · deploys · leases</text>
+
+        <rect class="box-accent" x="20" y="372" width="170" height="52" rx="10"/>
+        <text class="t-a" x="105" y="395" text-anchor="middle" font-size="14" font-weight="600">celld-operator</text>
+        <text class="t-f" x="105" y="413" text-anchor="middle" font-size="11">control plane</text>
+
+        <line class="ln" x1="160" y1="172" x2="220" y2="104" marker-end="url(#ah)"/>
+        <line class="ln" x1="294" y1="120" x2="294" y2="154" marker-end="url(#ah)"/>
+        <line class="ln" x1="364" y1="176" x2="436" y2="102" marker-end="url(#ah)"/>
+        <line class="ln" x1="364" y1="184" x2="436" y2="184" marker-end="url(#ah)"/>
+        <line class="ln" x1="364" y1="192" x2="436" y2="264" marker-end="url(#ah)"/>
+        <line class="ln" x1="596" y1="96" x2="690" y2="168" marker-end="url(#ah)"/>
+        <line class="ln" x1="596" y1="182" x2="686" y2="204" marker-end="url(#ah)"/>
+        <line class="ln" x1="596" y1="268" x2="690" y2="250" marker-end="url(#ah)"/>
+        <path class="ln-a" d="M190 398 C 330 398 450 380 506 296" marker-end="url(#aha)"/>
+        <text class="t-a" x="232" y="430" font-size="11.5">reconciles · gates rollouts · polls /state</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container split">
+    <div>
+      <span class="eyebrow">One resource</span>
+      <h2>Declare the app. Get the whole fleet.</h2>
+      <p>
+        Hostnames, the expected deployment, the bucket, sizing, and scaling targets. The
+        operator validates the spec against your allowlists, reconciles every object
+        below, and reports fleet health, per-pod deployment versions, and rollout progress
+        back in <code>status</code>.
+      </p>
+      <p>
+        Integrations are optional: without Gateway API, Istio, or KEDA, the fleet keeps
+        serving and the gap shows up as a condition, not a crash loop.
+      </p>
+      <p><a href="/docs/workerapp/">Full WorkerApp reference →</a></p>
+    </div>
+    <div class="tree" aria-label="Objects reconciled for one WorkerApp">
+<div><span class="root">WorkerApp</span> <span class="nm">tenant-acme/chat</span></div>
+<div><span class="br">├─</span> <span class="kind">ServiceAccount</span>       <span class="nm">chat-celld</span></div>
+<div><span class="br">├─</span> <span class="kind">Service</span>              <span class="nm">chat-celld-internal</span><span class="opt">headless · :8081</span></div>
+<div><span class="br">├─</span> <span class="kind">Service</span>              <span class="nm">chat-celld</span><span class="opt">:8080</span></div>
+<div><span class="br">├─</span> <span class="kind">NetworkPolicy</span>        <span class="nm">chat-celld</span></div>
+<div><span class="br">├─</span> <span class="kind">PodDisruptionBudget</span>  <span class="nm">chat-celld</span></div>
+<div><span class="br">├─</span> <span class="kind">StatefulSet</span>          <span class="nm">chat-celld</span><span class="opt">partition-gated</span></div>
+<div><span class="br">├─</span> <span class="kind">HTTPRoute</span>            <span class="nm">chat-celld</span><span class="opt">with hostnames</span></div>
+<div><span class="br">├─</span> <span class="kind">AuthorizationPolicy</span>  <span class="nm">chat-celld-internal</span><span class="opt">with Istio</span></div>
+<div><span class="br">└─</span> <span class="kind">ScaledObject</span>         <span class="nm">chat-celld</span><span class="opt">with autoscaling</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section soft">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Features</span>
       <h2>The control plane celld deliberately ships without</h2>
-      <p>celld supplies the runtime and the data plane; the operator supplies the platform. Upstream stays unpatched: the operator's celld-facing surface is env vars, signals, and two HTTP endpoints.</p>
+      <p>celld supplies the runtime and the data plane; the operator supplies the platform. Upstream stays unpatched: the operator talks to celld through environment variables, signals, a health path, and the internal <code>/state</code> endpoint.</p>
     </div>
     <div class="grid cols-3">
       <div class="card">
+        <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div>
         <h3>Gated rollouts</h3>
-        <p>Not a vanilla rolling update: the operator releases one pod at a time and steps only when the <em>whole fleet</em> reports <code>restoring=0</code>. The restore load lands on peers, which a stock rollout cannot see. Progress lives in <code>status.rollout.waitingOn</code>.</p>
+        <p>One pod at a time, stepping only when every pod is Ready and the whole fleet reports <code>restoring=0</code>. Breaking celld upgrades are refused unless the resource asks for a Recreate.</p>
+        <a class="more" href="/docs/deploying/#gated">How the gate works →</a>
       </div>
       <div class="card">
-        <h3>Custom-metrics autoscaling</h3>
-        <p>CPU is the wrong signal for celld. The operator exports resident-cell utilization and pressure-shedding metrics from each pod's <code>/state</code>, and drives a KEDA ScaledObject with celld-aware policy: scale up early, scale down slowly, never during a rollout.</p>
+        <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></div>
+        <h3>Cell-aware autoscaling</h3>
+        <p>CPU is the wrong signal. The operator exports resident-cell utilization and shedding from each pod's <code>/state</code> and drives KEDA on complete, fresh samples only: up early, down slowly, never mid-rollout.</p>
+        <a class="more" href="/docs/autoscaling/">Scaling policy →</a>
       </div>
       <div class="card">
+        <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></div>
         <h3>Ingress your way</h3>
-        <p>Gateway API HTTPRoutes on a shared Gateway, classic Istio VirtualServices, or plain <code>networking.k8s.io/v1</code> Ingress with cert-manager TLS. Drain 503s are retried at the edge so rollouts are invisible to clients.</p>
+        <p>Gateway API HTTPRoutes on a shared Gateway, classic Istio VirtualServices, or plain Ingress with cert-manager TLS. Readiness means the Gateway accepted and programmed the route, not just that it exists.</p>
+        <a class="more" href="/docs/networking/">Networking →</a>
       </div>
       <div class="card">
-        <h3>Security by default</h3>
-        <p>celld's unauthenticated internal listener is fenced by NetworkPolicy and Istio AuthorizationPolicy, never routed. One IAM role per fleet, scoped to that fleet's bucket prefix. Tenancy is enforced at the Kubernetes layer.</p>
+        <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
+        <h3>Guardrails by default</h3>
+        <p>Allowlists for images, IAM roles, Azure identities, and bucket endpoints. Non-root, read-only pods. The unauthenticated internal listener is fenced by NetworkPolicy and never routed.</p>
+        <a class="more" href="/docs/security/">Security model →</a>
       </div>
       <div class="card">
-        <h3>GitOps-native deploys</h3>
-        <p>Pin <code>appVersion</code> in git and let your GitOps tool roll the fleet, or set <code>appVersion: auto</code> and a plain <code>celld deploy</code> rolls it within one poll interval. Version drift always surfaces as a status condition.</p>
+        <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></div>
+        <h3>Deploys that verify</h3>
+        <p>celld adopts new deployments in place. Pin <code>appVersion</code> in git or follow the bucket with <code>auto</code>; either way the app is Ready only when every pod reports serving the expected version.</p>
+        <a class="more" href="/docs/deploying/">Deploying updates →</a>
       </div>
       <div class="card">
-        <h3>Built-in telemetry</h3>
-        <p>One field enables celld's tracing: Parquet traces and logs in your own bucket (DuckDB-queryable, no services to run) or OTLP to your collector. W3C <code>traceparent</code> joins edge spans to Durable Object spans.</p>
+        <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></div>
+        <h3>Telemetry in your bucket</h3>
+        <p>Parquet traces and logs under the fleet's own prefix, queryable with DuckDB and nothing to run, or OTLP to your collector. W3C <code>traceparent</code> joins edge spans to Durable Object spans.</p>
+        <a class="more" href="/docs/observability/">Observability →</a>
       </div>
     </div>
   </div>
 </section>
 
 <section class="section">
-  <div class="container">
-    <div class="split">
-      <div>
-        <span class="kicker">Encoded, not documented</span>
-        <h2>Rules you cannot get wrong</h2>
-        <p>
-          celld has precise operational requirements. Most platforms put them in a runbook;
-          this operator puts them in the reconciler. There are no templates to drift.
-        </p>
-        <ul class="checklist">
-          <li><strong>Liveness is TCP only.</strong> celld's health path answers 503 during a graceful drain; an HTTP liveness probe there would kill nodes mid-handoff.</li>
-          <li><strong>Termination grace exceeds the drain bound</strong>, so the kubelet never SIGKILLs a draining node.</li>
-          <li><strong><code>CELLD_MAX_RSS_MB</code> is set explicitly</strong> to ~80% of the container memory limit, because the upstream default is not cgroup-aware.</li>
-          <li><strong>The internal listener stays internal.</strong> Port 8081 is reachable only from fleet pods and the operator, and is never routed.</li>
-          <li><strong>Peers can reach draining pods</strong> so cell handoff works while a node reports unready.</li>
-          <li><strong>Breaking celld upgrades are refused</strong> unless the resource explicitly opts into a Recreate, so a GitOps diff alone can never create a mixed fleet.</li>
-        </ul>
+  <div class="container split top">
+    <div>
+      <span class="eyebrow">Gated rollout</span>
+      <h2>Rollouts that wait for the fleet, not just the pod.</h2>
+      <p>
+        When a node drains, its cells restore on the <em>peers</em>, which a stock rolling
+        update cannot see. The operator owns the StatefulSet partition and releases one
+        ordinal only when every gate passes:
+      </p>
+      <ol class="steps">
+        <li><strong>Pause the autoscaler</strong><span>KEDA must acknowledge <code>Paused=True</code>, and no HPA may target the fleet.</span></li>
+        <li><strong>Check the version boundary</strong><span>Non-rolling celld changes are refused unless <code>updateStrategy: Recreate</code>.</span></li>
+        <li><strong>Release one pod</strong><span>Lower the partition by one, then hold a 10-second settle interval.</span></li>
+        <li><strong>Wait for the fleet</strong><span>Every pod Ready and answering <code>/state</code>, fleet-wide <code>restoring=0</code>. Then the next pod.</span></li>
+      </ol>
+    </div>
+    <div class="window" role="img" aria-label="kubectl watch output showing a rollout stepping through gates until Ready">
+      <div class="window-bar"><span class="dots"><i></i><i></i><i></i></span><span class="file">status.rollout</span><span class="meta">watch</span></div>
+<pre><span class="p">$</span> kubectl get workerapp chat -w -o custom-columns=\
+  PHASE:.status.phase,PART:.status.rollout.partition,\
+  WAITING:.status.rollout.waitingOn
+PHASE        PART   WAITING
+RollingOut   3      waiting for rollout settle interval
+RollingOut   2      chat-celld-2: updating
+RollingOut   2      chat-celld-2: not ready
+RollingOut   2      fleet state: restoring=4, error=&lt;nil&gt;
+RollingOut   1      chat-celld-1: updating
+RollingOut   1      fleet state: restoring=2, error=&lt;nil&gt;
+RollingOut   &lt;none&gt; chat-celld-0: updating
+Pending      &lt;none&gt; fleet: 2/3 ready
+<span class="ok-t">Ready</span>        &lt;none&gt; &lt;none&gt;</pre>
+    </div>
+  </div>
+</section>
+
+<section class="section soft">
+  <div class="container split top">
+    <div>
+      <span class="eyebrow">Encoded, not documented</span>
+      <h2>Rules you cannot get wrong</h2>
+      <p>celld has precise operational requirements. Most platforms put them in a runbook; this operator puts them in the reconciler, and there are no templates to drift.</p>
+      <ul class="checklist">
+        <li><strong>Liveness is TCP only.</strong> celld's health path answers 503 during a graceful drain; an HTTP liveness probe there would kill nodes mid-handoff.</li>
+        <li><strong>60 seconds of grace around a 40-second shutdown bound</strong>, so the kubelet does not SIGKILL a node that is still handing off.</li>
+        <li><strong><code>CELLD_MAX_RSS_MB</code> is explicit</strong> at 80% of the memory limit, visible in the pod spec and under celld's absolute cap.</li>
+        <li><strong>The internal listener stays internal.</strong> Port 8081 admits only fleet pods and the operator's manager pods, and is never routed.</li>
+        <li><strong>Durability is guarded.</strong> <code>fleet</code> durability requires persistent volumes, three replicas, and pods on distinct hosts.</li>
+        <li><strong>Downgrades that could lose writes are blocked</strong>, even with Recreate.</li>
+      </ul>
+    </div>
+    <div>
+      <span class="eyebrow">Built on celld</span>
+      <h2>The runtime underneath</h2>
+      <p>
+        <a href="https://celld.dev" rel="external">celld</a> is Deno Land's open-source
+        (Apache-2.0) daemon that embeds V8 and runs Wrangler-built Workers. Your build is
+        unchanged: esbuild, <code>wrangler.jsonc</code>, <code>celld deploy</code>.
+      </p>
+      <ul class="checklist">
+        <li><strong>RPO=0.</strong> A write is acknowledged only once it is in the bucket, or on follower disks with <code>fleet</code> durability.</li>
+        <li><strong>One writer per cell.</strong> Conditional writes fence ownership, with no consensus service or membership protocol.</li>
+        <li><strong>Cheap density.</strong> One 8&nbsp;GB node holds about 1,000 resident cells; inactive cells are just objects in the bucket.</li>
+      </ul>
+      <ul class="chips" aria-label="Cloudflare services on celld v0.6.2">
+        <li class="yes">Workers</li><li class="yes">Durable Objects</li><li class="yes">KV</li><li class="yes">Queues</li><li class="yes">D1</li><li class="yes">Workflows</li><li class="yes">R2</li><li class="yes">Cron Triggers</li><li class="yes">Static assets</li><li class="no">Workers AI</li><li class="no">Vectorize</li><li class="no">Hyperdrive</li>
+      </ul>
+      <p style="margin-top:1rem"><a href="/docs/compatibility/">Full compatibility matrix →</a></p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container split top">
+    <div>
+      <span class="eyebrow">Status</span>
+      <h2>Alpha software, stated plainly</h2>
+      <p>
+        celld v0.6.2 is a beta release and this operator is alpha. The project publishes
+        what it has verified and what it has not, so you can qualify it on your own
+        platform before you trust it with data.
+      </p>
+      <p><a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/production-audit.md" rel="external">Read the production audit →</a></p>
+    </div>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3 style="margin-top:0">Verified in the repository</h3>
+        <p>Unit and envtest suites for malformed state, incomplete fleets, KEDA pause acknowledgement, Recreate, deployment convergence, and credential isolation; Helm rendering tests; a Kind lifecycle suite; module and image vulnerability scans.</p>
       </div>
-      <div>
-        <span class="kicker">Built on celld</span>
-        <h2>The runtime underneath</h2>
-        <p>
-          <a href="https://celld.dev" rel="external">celld</a> is Deno Land's open-source
-          (Apache-2.0) daemon that embeds V8 and executes Wrangler-built Workers. Your
-          existing build pipeline is retained unchanged: esbuild, <code>wrangler.jsonc</code>,
-          <code>celld deploy</code>.
-        </p>
-        <ul class="checklist">
-          <li><strong>RPO=0.</strong> A write is not acknowledged before it is durable in the bucket. Nodes are replaceable; the bucket is the source of truth.</li>
-          <li><strong>One writer per cell.</strong> Object-storage compare-and-swap fences ownership, with no consensus service or membership protocol.</li>
-          <li><strong>Cheap density.</strong> One 8&nbsp;GB node holds ~1,000 resident cells, about $0.05 per resident cell per month. Inactive cells cost nearly nothing.</li>
-          <li><strong>Real Durable Objects.</strong> SQLite storage, alarms, hibernatable WebSockets, JS RPC, service bindings, static assets, WebAssembly. <a href="/docs/compatibility/">See the compatibility matrix</a>.</li>
-        </ul>
+      <div class="card">
+        <h3 style="margin-top:0">Yours to qualify</h3>
+        <p>Real host and zone loss under acknowledged writes, cloud workload identity, CNI and mesh enforcement, KEDA and Prometheus outages, and production-scale load, on the platform you intend to run.</p>
       </div>
     </div>
   </div>
 </section>
 
-<section class="section alt">
-  <div class="container" style="text-align:center">
-    <h2 style="margin-top:0">Run your first fleet in minutes</h2>
-    <p style="color:var(--muted); max-width:38rem; margin:0.6rem auto 1.6rem">
-      Install the operator, deploy a Wrangler project to your bucket, and create a
-      WorkerApp. The operator converges the rest.
-    </p>
-    <div class="cta-row" style="justify-content:center">
-      <a class="btn btn-primary" href="/docs/quick-start/">Quick start</a>
-      <a class="btn btn-ghost" style="color:var(--fg); border-color:var(--border)" href="https://github.com/ezgamehost/celld-operator" rel="external">Star on GitHub</a>
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="cta-band">
+      <h2>Run your first fleet</h2>
+      <p>Install the operator, deploy a Wrangler project to your bucket, and create a WorkerApp. The operator converges the rest.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="/docs/quick-start/">Quick start <span class="arrow">→</span></a>
+        <a class="btn btn-secondary" href="https://github.com/ezgamehost/celld-operator" rel="external">View on GitHub</a>
+      </div>
     </div>
   </div>
 </section>
@@ -354,11 +411,10 @@ chat   Ready   sha-abc123   3       0</pre>
   <div class="container">
     <div class="cols">
       <div>
-        <a class="brand" href="/" style="margin-bottom:.6rem">
-          <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+        <a class="brand" href="/"><svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#07090e"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
           celld-operator
         </a>
-        <p style="margin:.6rem 0 0; font-size:.88rem">
+        <p class="blurb">
           A Kubernetes control plane for celld: self-hosted Cloudflare Workers and
           Durable Objects on infrastructure you own.
         </p>
@@ -376,9 +432,9 @@ chat   Ready   sha-abc123   3       0</pre>
         <h4>Project</h4>
         <ul>
           <li><a href="https://github.com/ezgamehost/celld-operator" rel="external">GitHub</a></li>
-          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/celld-behaviors.md" rel="external">celld behaviors reference</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/production.md" rel="external">Production guide</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/celld-behaviors.md" rel="external">celld behaviors index</a></li>
           <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/SECURITY.md" rel="external">Security policy</a></li>
-          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/CONTRIBUTING.md" rel="external">Contributing</a></li>
         </ul>
       </div>
       <div>
@@ -386,7 +442,7 @@ chat   Ready   sha-abc123   3       0</pre>
         <ul>
           <li><a href="https://celld.dev" rel="external">celld.dev</a></li>
           <li><a href="https://github.com/denoland/celld" rel="external">denoland/celld</a></li>
-          <li><a href="https://celld.dev/docs" rel="external">celld documentation</a></li>
+          <li><a href="https://github.com/denoland/celld/blob/v0.6.2/docs/README.md" rel="external">celld v0.6.2 docs</a></li>
         </ul>
       </div>
     </div>

@@ -4,29 +4,34 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Autoscaling celld fleets with KEDA · celld-operator</title>
-<meta name="description" content="Scale celld fleets on resident-cell utilization, not CPU: the operator's /state-derived Prometheus metrics, KEDA ScaledObjects, and celld-aware scaling policy.">
+<meta name="description" content="Scale celld fleets on resident-cell utilization, not CPU: the operator's /state-derived Prometheus metrics, KEDA ScaledObjects, freshness gates, and celld-aware policy.">
 <link rel="canonical" href="https://celld-operator.io/docs/autoscaling/">
+<meta name="theme-color" content="#07090e">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap">
 <link rel="stylesheet" href="/assets/style.css">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="celld-operator">
 <meta property="og:title" content="Autoscaling celld fleets with KEDA">
-<meta property="og:description" content="Scale celld fleets on resident-cell utilization, not CPU: the operator's /state-derived Prometheus metrics, KEDA ScaledObjects, and celld-aware scaling policy.">
+<meta property="og:description" content="Scale celld fleets on resident-cell utilization, not CPU: the operator's /state-derived Prometheus metrics, KEDA ScaledObjects, freshness gates, and celld-aware policy.">
 <meta property="og:url" content="https://celld-operator.io/docs/autoscaling/">
 <meta property="og:image" content="https://celld-operator.io/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Autoscaling celld fleets with KEDA">
-<meta name="twitter:description" content="Scale celld fleets on resident-cell utilization, not CPU: the operator's /state-derived Prometheus metrics, KEDA ScaledObjects, and celld-aware scaling policy.">
+<meta name="twitter:description" content="Scale celld fleets on resident-cell utilization, not CPU: the operator's /state-derived Prometheus metrics, KEDA ScaledObjects, freshness gates, and celld-aware policy.">
 <meta name="twitter:image" content="https://celld-operator.io/assets/og.png">
 <script type="application/ld+json">
 {
  "@context": "https://schema.org",
  "@type": "TechArticle",
  "headline": "Autoscaling celld fleets with KEDA",
- "description": "Scale celld fleets on resident-cell utilization, not CPU: the operator's /state-derived Prometheus metrics, KEDA ScaledObjects, and celld-aware scaling policy.",
+ "description": "Scale celld fleets on resident-cell utilization, not CPU: the operator's /state-derived Prometheus metrics, KEDA ScaledObjects, freshness gates, and celld-aware policy.",
  "url": "https://celld-operator.io/docs/autoscaling/",
+ "dateModified": "2026-10-18",
  "isPartOf": {
   "@type": "WebSite",
   "name": "celld-operator",
@@ -73,18 +78,19 @@
 <header class="site-head">
   <div class="container">
     <a class="brand" href="/">
-      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+      <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#07090e"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
       celld-operator
     </a>
     <nav class="site-nav" aria-label="Main">
-      <a href="/docs/">Docs</a>
+      <a href="/docs/" aria-current="page">Docs</a>
+      <a href="/docs/workerapp/">Reference</a>
       <a href="/docs/compatibility/">Compatibility</a>
-      <a href="https://celld.dev" rel="external">celld.dev</a>
-      <a class="gh" href="https://github.com/ezgamehost/celld-operator" rel="external">
-        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-        GitHub
-      </a>
+      <a href="https://celld.dev" rel="external">celld</a>
     </nav>
+    <div class="head-actions">
+      <a class="gh" href="https://github.com/ezgamehost/celld-operator" rel="external"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg><span>GitHub</span></a>
+      <a class="btn btn-primary btn-sm" href="/docs/quick-start/">Get started</a>
+    </div>
   </div>
 </header>
 
@@ -123,110 +129,132 @@
 <script>if(matchMedia("(max-width: 56rem)").matches)document.currentScript.parentElement.querySelector("details").removeAttribute("open")</script>
 </nav>
 <main class="docs-main" id="main">
-<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a> &rsaquo; <a href="/docs/">Docs</a> &rsaquo; <span>Autoscaling</span></nav>
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/docs/">Docs</a><span class="sep">/</span><span>Guides</span><span class="sep">/</span><span>Autoscaling</span></nav>
 <h1>Autoscaling</h1>
 <p class="lead">
 CPU is the wrong primary signal for celld: fleets are capacity-bound by
-<strong>resident cells and memory</strong>, and upstream ships no metrics endpoint yet.
-The operator closes both gaps: it exports the metrics and encodes the scaling policy.
+<strong>resident cells and memory</strong>, and celld records no metrics of its own. The
+operator closes both gaps: it exports the metrics and encodes the scaling policy.
 </p>
 
 <h2 id="metrics"><a class="anchor" href="#metrics">The metrics source</a></h2>
 <p>
-The operator already polls each fleet pod's internal <code>/state</code> endpoint for
-rollout gating (it is the one authorized cross-namespace caller). It re-exports what it
-sees as Prometheus metrics, per WorkerApp and per pod, on the leader every
-<code>--state-poll-interval</code> (default 15s):
+The leader polls every fleet pod's internal <code>/state</code> endpoint every
+<code>--state-poll-interval</code> (default 15s), with 16 polls in flight and a 30-second
+budget per sweep, and publishes each sweep atomically as Prometheus series labelled
+<code>namespace</code>, <code>workerapp</code>, and (per pod) <code>pod</code>. The full
+list is in <a href="/docs/observability/#metrics">Observability</a>; scaling uses these:
 </p>
 <div class="tbl-wrap"><table>
-<tr><th>Metric</th><th>Meaning</th></tr>
-<tr><td><code>celld_resident_cells</code></td><td>Occupied (resident) cells per pod.</td></tr>
-<tr><td><code>celld_resident_cell_utilization</code></td><td>occupied / <code>maxResidentCells</code> (0..1), the primary scale signal.</td></tr>
-<tr><td><code>celld_restoring</code></td><td>Cold activations in flight, cold activations in flight; a health signal, and the rollout controller's step gate — not an autoscaling input.</td></tr>
-<tr><td><code>celld_evicting</code></td><td>Cells being evicted.</td></tr>
-<tr><td><code>celld_shedding</code></td><td>1 while pressure-shedding; the hard out-of-capacity signal.</td></tr>
-<tr><td><code>celld_state_up</code></td><td>1 if <code>/state</code> answered the last poll.</td></tr>
+<tr><th>Metric</th><th>Role in scaling</th></tr>
+<tr><td><code>celld_resident_cell_utilization</code></td><td>Occupied cells / <code>maxResidentCells</code> (0..1) per pod. The primary signal, averaged across the fleet.</td></tr>
+<tr><td><code>celld_shedding</code></td><td>1 while a pod is pressure-shedding: the hard out-of-capacity signal.</td></tr>
+<tr><td><code>celld_fleet_complete</code></td><td>1 when the last sweep reached every expected pod. Every scaling query requires it.</td></tr>
+<tr><td><code>celld_fleet_sample_timestamp_seconds</code></td><td>When the sweep ran. Every scaling query requires a sample younger than 60 seconds.</td></tr>
 </table></div>
 <p>
-Point Prometheus at the operator (the chart exposes metrics on
-<code>:8443</code>), and tell the operator where KEDA can query them with
-<code>--prometheus-url</code>.
+Scrape the operator (the chart serves metrics on <code>:8443</code> and can create a
+ServiceMonitor with <code>prometheus.enable</code>), and tell the operator where KEDA can
+query them with <code>--prometheus-url</code>.
 </p>
 
 <h2 id="scaledobject"><a class="anchor" href="#scaledobject">What the operator materializes</a></h2>
 <p>With <code>spec.autoscaling.enabled: true</code>, the operator creates a KEDA
-ScaledObject targeting the fleet's StatefulSet:</p>
+ScaledObject targeting the fleet's StatefulSet, with Prometheus triggers:</p>
 <ul>
-<li>A Prometheus scaler on <code>celld_resident_cell_utilization</code> against your
-<code>targets.residentCellUtilization</code> (default 70%).</li>
-<li>Immediate scale-up when <em>any</em> pod sheds, regardless of the fleet average.</li>
-<li>Optionally, a gateway-side scaler on <code>targets.p95LatencyMs</code>, so
-traffic-bound, stateless-Worker-heavy apps scale even at low cell counts.</li>
+<li><strong>Utilization</strong>: <code>avg(celld_resident_cell_utilization)</code> for
+the app against <code>targets.residentCellUtilization</code> (default 70%).</li>
+<li><strong>Shedding</strong>: <code>max(celld_shedding)</code> above 0.5, so any shedding
+pod scales the fleet up regardless of the average.</li>
+<li><strong>Latency</strong> (optional): the p95 of Istio's
+<code>istio_request_duration_milliseconds</code> at the fleet's Service against
+<code>targets.p95LatencyMs</code>, so traffic-bound, stateless-heavy apps scale even at
+low cell counts. It needs Istio metrics in the same Prometheus.</li>
 </ul>
+<p>
+Each query is wrapped in the completeness and freshness guard, and empty results are not
+treated as zero: partial data or an unreachable Prometheus makes the scaler error out
+instead of reporting low utilization. Triggers use KEDA's <code>Value</code> metric type
+because the queries are already fleet aggregates.
+</p>
 <pre class="code"><code><span class="k">autoscaling:</span>
   <span class="k">enabled:</span> <span class="n">true</span>
-  <span class="k">minReplicas:</span> <span class="n">3</span>     <span class="c"># keep ≥ 2 for HA</span>
+  <span class="k">minReplicas:</span> <span class="n">3</span>     <span class="c"># keep ≥ 2 for HA; ≥ 3 with fleet durability</span>
   <span class="k">maxReplicas:</span> <span class="n">10</span>    <span class="c"># the tenant's cost ceiling</span>
   <span class="k">targets:</span>
     <span class="k">residentCellUtilization:</span> <span class="n">70</span>
     <span class="k">p95LatencyMs:</span> <span class="n">250</span>  <span class="c"># optional; needs Istio telemetry</span></code></pre>
 
 <h2 id="policy"><a class="anchor" href="#policy">celld-aware policy, encoded</a></h2>
-<p>These behaviors are set by the operator rather than left to tuning:</p>
 <ul>
-<li><strong>Scale up early; expect slow absorption.</strong> celld has no rebalancer: a
-new pod is a spare that fills only as traffic activates unowned cells or as pressure
-shedding releases them. Hence the conservative 70% default target and the shedding
-fast-path: by the time shedding starts, the fleet is already rebalancing the hard way.</li>
-<li><strong>Scale down slowly, and never during churn.</strong> Removing a pod is a
-graceful drain, but it hands that node's cells to peers (cold restores) and closes its
-WebSockets (clients reconnect). Default: one pod per 5 minutes after a long stabilization
-window — 10 minutes normally, 30 for <code>websockets: true</code> fleets.</li>
+<li><strong>Scale up early; expect slow absorption.</strong> Active-cell placement is
+traffic-driven: a new pod takes active cells only as traffic activates unowned cells or
+shedding releases them. celld v0.6.2 does rebalance <em>hibernated</em> cells by node
+weight, but busy cells stay put. Hence the conservative 70% default and the shedding
+fast path.</li>
+<li><strong>Scale down slowly, one pod at a time.</strong> Removing a pod is a graceful
+drain that hands its cells to peers (cold restores) and closes its WebSockets. The
+operator allows one pod per 5 minutes after a stabilization window of 10 minutes, or 30
+for <code>websockets: true</code> fleets.</li>
 <li><strong>Autoscaling and rollouts never fight.</strong> Whenever the phase is not
-<code>Ready</code> — <code>RollingOut</code>, <code>Recreating</code>, but also
-<code>Pending</code> and <code>Degraded</code> — the operator pauses the ScaledObject
-(KEDA pause annotation) and pins replicas; the partition arithmetic assumes a stable
-count. Scaling resumes when the fleet is <code>Ready</code> again, which means the
-StatefulSet reports fully updated and ready. A fleet parked in <code>Degraded</code>
-therefore has autoscaling pinned until you resolve it.</li>
+<code>Ready</code>, the ScaledObject is paused. Before changing the fleet, the operator
+also waits for KEDA to acknowledge the pause (<code>Paused=True</code>) and for any HPA
+targeting the StatefulSet to disappear; a stalled pause blocks the rollout and shows in
+<code>status.rollout.waitingOn</code>.</li>
 </ul>
 
 <h2 id="requirements"><a class="anchor" href="#requirements">Requirements and degradation</a></h2>
 <p>
-Autoscaling needs <a href="https://keda.sh" rel="external">KEDA</a> installed and a
-Prometheus scraping the operator. When the KEDA CRDs are absent the WorkerApp reports
-<code>AutoscalingReady: False</code> with reason <code>KEDAUnavailable</code> and
-<code>spec.autoscaling</code> has no effect. (A missing or unreachable
-<em>Prometheus</em> is not detected: KEDA owns that failure, and the condition stays
-True.)
+Autoscaled WorkerApps need <a href="https://keda.sh" rel="external">KEDA</a>
+<strong>v2.12.0 or newer</strong> (for the <code>Paused=True</code> acknowledgement) and a
+Prometheus scraping the operator. Without the KEDA CRDs, the WorkerApp reports
+<code>AutoscalingReady: False</code>, reason <code>KEDAUnavailable</code>, and
+<code>spec.autoscaling</code> has no effect. Non-autoscaled WorkerApps need neither.
 </p>
-<div class="warn">
-<p><strong>Enabling autoscaling hands replica count to KEDA permanently.</strong> Once
-<code>spec.autoscaling.enabled</code> is true the operator stops reconciling replicas
-altogether, so later edits to <code>spec.replicas</code> are ignored — and if KEDA is
-absent the fleet simply stays at whatever count it already had. Set the floor and ceiling
-with <code>minReplicas</code>/<code>maxReplicas</code>, and to hand control back, disable
-autoscaling first.</p>
+<p>
+A missing or broken Prometheus is not a condition: KEDA owns that failure. Alert on
+KEDA scaler errors, on <code>celld_fleet_complete == 0</code>, and on stale
+<code>celld_fleet_sample_timestamp_seconds</code>, and keep the poll interval well below
+60 seconds. Large or unhealthy fleets can fail the sweep's completeness check rather than
+extend its deadline.
+</p>
+<div class="note">
+<p><strong>Who owns the replica count.</strong> With autoscaling enabled, KEDA owns it
+and <code>spec.replicas</code> is only the initial size. Turn autoscaling off and the
+operator deletes the ScaledObject and reconciles <code>spec.replicas</code> again.</p>
 </div>
 <div class="note">
-<p><strong>Sizing rule of thumb</strong> (upstream): ~1,000 resident cells per 8&nbsp;GiB
-node. Set <code>resources.maxResidentCells</code> and <code>resources.memoryGi</code>
-together; the operator derives the container limit, <code>CELLD_MAX_RSS_MB</code> (~80% of
-the limit), and the admission cap from these two numbers.</p>
+<p><strong>Sizing rule of thumb</strong> (upstream): about 1,000 resident cells per
+8&nbsp;GiB node. Set <code>resources.maxResidentCells</code> and
+<code>resources.memoryGi</code> together; the operator derives the container limit,
+<code>CELLD_MAX_RSS_MB</code> (80% of the limit), and the admission cap from them.</p>
 </div>
 
+<div class="page-foot"><a href="https://github.com/ezgamehost/celld-operator.io/blob/main/build/content/autoscaling.html" rel="external"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit this page on GitHub</a><span>Updated 2026-10-18</span></div>
 <nav class="pager" aria-label="Docs pages"><a class="prev" href="/docs/deploying/" rel="prev"><span class="dir">&larr; Previous</span>Deploying updates</a><a class="next" href="/docs/networking/" rel="next"><span class="dir">Next &rarr;</span>Networking &amp; ingress</a></nav>
 </main>
+<aside class="toc" aria-label="On this page">
+<div class="toc-inner">
+<h4>On this page</h4>
+<ul>
+<li><a href="#metrics">The metrics source</a></li>
+<li><a href="#scaledobject">What the operator materializes</a></li>
+<li><a href="#policy">celld-aware policy, encoded</a></li>
+<li><a href="#requirements">Requirements and degradation</a></li>
+</ul>
+<div class="toc-meta"><a href="https://github.com/ezgamehost/celld-operator.io/blob/main/build/content/autoscaling.html" rel="external"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit this page</a></div>
+</div>
+</aside>
 </div>
 
 <footer class="site-foot">
   <div class="container">
     <div class="cols">
       <div>
-        <a class="brand" href="/"><svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#070d1a"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
+        <a class="brand" href="/"><svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#07090e"/><polygon points="16 4.5 25.5 10 25.5 21 16 26.5 6.5 21 6.5 10" fill="none" stroke="#22d3ee" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="15.5" r="3.4" fill="#22d3ee"/></svg>
           celld-operator
         </a>
-        <p style="margin:.6rem 0 0; font-size:.88rem">
+        <p class="blurb">
           A Kubernetes control plane for celld: self-hosted Cloudflare Workers and
           Durable Objects on infrastructure you own.
         </p>
@@ -244,9 +272,9 @@ the limit), and the admission cap from these two numbers.</p>
         <h4>Project</h4>
         <ul>
           <li><a href="https://github.com/ezgamehost/celld-operator" rel="external">GitHub</a></li>
-          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/celld-behaviors.md" rel="external">celld behaviors reference</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/production.md" rel="external">Production guide</a></li>
+          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/docs/celld-behaviors.md" rel="external">celld behaviors index</a></li>
           <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/SECURITY.md" rel="external">Security policy</a></li>
-          <li><a href="https://github.com/ezgamehost/celld-operator/blob/main/CONTRIBUTING.md" rel="external">Contributing</a></li>
         </ul>
       </div>
       <div>
@@ -254,7 +282,7 @@ the limit), and the admission cap from these two numbers.</p>
         <ul>
           <li><a href="https://celld.dev" rel="external">celld.dev</a></li>
           <li><a href="https://github.com/denoland/celld" rel="external">denoland/celld</a></li>
-          <li><a href="https://celld.dev/docs" rel="external">celld documentation</a></li>
+          <li><a href="https://github.com/denoland/celld/blob/v0.6.2/docs/README.md" rel="external">celld v0.6.2 docs</a></li>
         </ul>
       </div>
     </div>
